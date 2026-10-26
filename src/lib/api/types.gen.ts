@@ -146,6 +146,39 @@ export type PortfolioDto = {
     complete: boolean;
 };
 
+export type MarketDto = {
+    /**
+     * Indicateur descriptif d’après le BTC sur 24 h (±2 %) ; ce n’est pas un signal de trading. Null si indisponible
+     */
+    state: 'UP' | 'DOWN' | 'CALM';
+    btcChange24hPct: string | null;
+};
+
+export type AssetTrendDto = {
+    symbol: string;
+    /**
+     * Variation sur 24 h, en % ; null si la source est indisponible ou si l’actif est coté depuis moins de 24 h
+     */
+    change24hPct: string | null;
+    /**
+     * Variation sur 7 jours, en % ; null sans une semaine complète de données
+     */
+    change7dPct: string | null;
+    /**
+     * Prix de clôture horaires (au plus 42 points, du plus ancien au plus récent) ; vide si indisponible
+     */
+    sparkline: Array<string>;
+};
+
+export type TrendsDto = {
+    market: MarketDto;
+    assets: Array<AssetTrendDto>;
+    /**
+     * Faux si une courbe est indisponible pour au moins un actif (réponse partielle)
+     */
+    complete: boolean;
+};
+
 export type RecordTransactionDto = {
     symbol: string;
     side: 'BUY' | 'SELL';
@@ -710,6 +743,19 @@ export type PortfolioControllerGetResponses = {
 };
 
 export type PortfolioControllerGetResponse = PortfolioControllerGetResponses[keyof PortfolioControllerGetResponses];
+
+export type PortfolioControllerGetTrendsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/portfolio/trends';
+};
+
+export type PortfolioControllerGetTrendsResponses = {
+    200: TrendsDto;
+};
+
+export type PortfolioControllerGetTrendsResponse = PortfolioControllerGetTrendsResponses[keyof PortfolioControllerGetTrendsResponses];
 
 export type PortfolioControllerRecordData = {
     body: RecordTransactionDto;

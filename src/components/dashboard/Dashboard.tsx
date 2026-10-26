@@ -4,12 +4,15 @@ import { BotStatusCard } from "@/components/bot/BotStatusCard";
 import { OrdersCard } from "@/components/orders/OrdersCard";
 import { Glass } from "@/components/ui/glass";
 import { usePortfolio } from "@/lib/queries/portfolio";
+import { marketState, useTrends } from "@/lib/queries/trends";
 import { AssetsTable } from "./AssetsTable";
 import { WalletHeader } from "./WalletHeader";
 
 /** Tableau de bord : valeur du portefeuille, répartition et positions. */
 export function Dashboard() {
   const { data: portfolio, error, isPending, refetch, isFetching } = usePortfolio();
+  // Les tendances n'empêchent jamais d'afficher le portefeuille : en cas d'échec, seules les courbes manquent.
+  const trends = useTrends();
 
   if (isPending) {
     return (
@@ -38,8 +41,11 @@ export function Dashboard() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <BotStatusCard />
-      <WalletHeader portfolio={portfolio} />
-      <AssetsTable assets={portfolio.assets} currency={portfolio.currency} />
+      <WalletHeader
+        portfolio={portfolio}
+        market={trends.data ? { state: marketState(trends.data), btcChange24hPct: trends.data.market.btcChange24hPct } : undefined}
+      />
+      <AssetsTable assets={portfolio.assets} currency={portfolio.currency} trends={trends.data} trendsFailed={trends.isError && !trends.data} />
       <OrdersCard />
     </div>
   );

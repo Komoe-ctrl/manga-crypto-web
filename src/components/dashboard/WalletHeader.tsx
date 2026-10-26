@@ -6,8 +6,14 @@ import { TONE_CLASS, formatMoney, formatPercent, formatSigned, tone } from "@/li
 import { usePrivacy } from "@/lib/privacy";
 import { AllocationBar } from "./AllocationBar";
 
-/** Carte principale : valeur totale, résultat depuis l'achat et répartition. */
-export function WalletHeader({ portfolio }: { portfolio: PortfolioDto }) {
+const MARKET_TEXT = {
+  UP: { label: "Marché en hausse", cls: "bg-gain/10 text-gain" },
+  DOWN: { label: "Marché en baisse", cls: "bg-loss/10 text-loss" },
+  CALM: { label: "Marché calme", cls: "bg-calm/10 text-calm" },
+} as const;
+
+/** Carte principale : valeur totale, résultat depuis l'achat, état du marché et répartition. */
+export function WalletHeader({ portfolio, market }: { portfolio: PortfolioDto; market?: { state: keyof typeof MARKET_TEXT | null; btcChange24hPct: string | null } }) {
   const { mask } = usePrivacy();
   const { currency } = portfolio;
   const pnlTone = TONE_CLASS[tone(portfolio.totalPnl)];
@@ -29,6 +35,16 @@ export function WalletHeader({ portfolio }: { portfolio: PortfolioDto }) {
             {formatPercent(portfolio.totalPnlPct)} · {mask(formatSigned(portfolio.totalPnl, currency))}
           </span>
           <span className="text-muted">depuis l’achat</span>
+          {market?.state && (
+            // Descriptif seulement : le BTC sur 24 h, pas un conseil d'achat ou de vente.
+            <span
+              title="Indicateur descriptif d'après le BTC sur 24 h. Ce n'est pas un conseil d'achat ou de vente."
+              className={`ml-auto rounded-full px-2.5 py-1 text-[13px] font-bold ${MARKET_TEXT[market.state].cls}`}
+            >
+              {MARKET_TEXT[market.state].label}
+              {market.btcChange24hPct !== null && <span className="font-semibold tabular-nums"> · BTC {formatPercent(market.btcChange24hPct)} sur 24 h</span>}
+            </span>
+          )}
         </div>
         {!portfolio.complete && (
           <p role="status" className="text-sm text-loss">

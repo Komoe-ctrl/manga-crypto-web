@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
+import { createPortal } from "react-dom";
 
 const FOCUSABLE = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
@@ -51,7 +52,9 @@ export function Modal({ titleId, onClose, returnFocusRef, children }: ModalProps
     }
   };
 
-  return (
+  // Rendue dans `<body>` : un parent avec `backdrop-filter` (les cartes « Glass ») devient le repère d'un élément
+  // `fixed`, et la fenêtre resterait enfermée, minuscule, dans la carte qui l'ouvre.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
       onMouseDown={(event) => {
@@ -69,6 +72,7 @@ export function Modal({ titleId, onClose, returnFocusRef, children }: ModalProps
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

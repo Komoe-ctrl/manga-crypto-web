@@ -14,6 +14,11 @@ interface QueryState {
 const refetch = vi.fn(async () => undefined);
 let query: QueryState;
 vi.mock("@/lib/queries/portfolio", () => ({ usePortfolio: () => query }));
+// Les tendances ont leurs tests dans trends.test.tsx : ici, elles ne sont ni chargées ni en erreur.
+vi.mock("@/lib/queries/trends", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/queries/trends")>()),
+  useTrends: () => ({ data: undefined, isError: false }),
+}));
 // Les cartes du robot et des ordres ont leurs propres tests (bot.test.tsx, orders.test.tsx) : ici, seul le portefeuille compte.
 vi.mock("@/components/bot/BotStatusCard", () => ({ BotStatusCard: () => null }));
 vi.mock("@/components/orders/OrdersCard", () => ({ OrdersCard: () => null }));

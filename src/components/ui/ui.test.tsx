@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Segmented } from "./segmented";
 import { Switch } from "./switch";
 import { ToastProvider, useToast } from "./toast";
 
@@ -131,5 +132,12 @@ describe("ToastProvider", () => {
     fireEvent.click(screen.getByText("notifier"));
     unmount();
     expect(() => act(() => vi.advanceTimersByTime(10_000))).not.toThrow();
+  });
+});
+
+describe("Segmented : libellés sur une seule ligne", () => {
+  it("un libellé de deux mots (« En gain ») ne passe pas à la ligne", () => {
+    render(<Segmented label="Filtre" value="a" onChange={() => undefined} options={[["a", "Tous"], ["b", "En gain"]] as const} />);
+    expect(screen.getByRole("button", { name: "En gain" }).className).toContain("whitespace-nowrap");
   });
 });

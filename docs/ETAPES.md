@@ -175,3 +175,39 @@ Le temps réel invalide désormais aussi les clés `settings`, `digests`, `push`
 `npm run typecheck`, `npm run lint`, `npm test` (497 tests), `npm run build` : OK. `npm run test:real` : 13 tests contre une vraie API (2 nouveaux : alertes ; garde-fous, kill switch et ordre refusé). Le test réel a révélé que l'API renvoie la **paire** (`BTC/USDT`) : défaut corrigé, détail dans F26.
 
 **Pas encore fait** : courbes de prix (à ajouter côté API), réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur.
+
+
+## Étape 22 : courbes, variations et état du marché
+
+### Ce que l'on voit
+
+- **Tableau « Mes actifs »** : deux nouvelles colonnes, **24 h** (variation en %, vert ou orangé) et **7 jours** (courbe). Un stablecoin ou un actif sans données affiche des tirets.
+- **Carte du portefeuille** : une pastille « Marché en hausse / en baisse / calme · BTC … sur 24 h ». C'est une description de la journée, **pas un conseil** (infobulle).
+- **Corrections** : la fenêtre « Passer un ordre » couvre maintenant l'écran (elle était coincée dans sa carte) ; « En gain » et « En perte » ne passent plus sur deux lignes.
+
+### Organisation du code
+
+| Fichier | Rôle |
+|---|---|
+| `src/lib/queries/trends.ts` | `useTrends` (relue toutes les 5 minutes), `trendOf`, `marketState` |
+| `src/components/ui/Sparkline.tsx` | Courbe SVG nommée, sans dépendance |
+| `src/components/dashboard/AssetsTable.tsx`, `WalletHeader.tsx` | Colonnes 24 h / 7 jours, pastille de marché |
+| `src/components/ui/modal.tsx` | Rendue dans `<body>` par un portail |
+
+Prérequis : une API qui expose `GET /api/portfolio/trends` (étape 21 de `crypto-api`, fusionnée). Les types viennent de `npm run api:types`.
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| « Les variations et courbes sont indisponibles » | L'appel `/portfolio/trends` échoue (API injoignable ou trop ancienne : sans l'étape 21, 404) |
+| « Certaines courbes sont indisponibles » | Binance ne répond pas pour au moins un actif, ou l'actif n'y est pas coté |
+| Un actif a une courbe mais « — » en 24 h ou 7 jours | Actif coté depuis moins de 24 h, ou de moins d'une semaine : la courbe montre ce qui existe |
+| Pas de pastille de marché | Le BTC n'a pas pu être lu, ou les tendances ne sont pas encore chargées |
+| Les courbes ne bougent pas pendant 5 minutes | Normal : l'API met la lecture en cache 5 minutes |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (529 tests), `npm run build` : OK. `npm run test:real` : 14 tests contre une vraie API (1 nouveau : tendances avec les vraies données de Binance). Détail et limites dans F33 ; le rendu visuel reste à vérifier à l'œil.
+
+**Pas encore fait** : réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur (Playwright), audit d'accessibilité.
