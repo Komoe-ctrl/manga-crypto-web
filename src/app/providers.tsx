@@ -2,6 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
+import { ToastProvider } from "@/components/ui/toast";
 import { AuthProvider } from "@/lib/auth/auth-provider";
 import { PrivacyProvider } from "@/lib/privacy";
 import { RealtimeProvider } from "@/lib/realtime/realtime-provider";
@@ -33,7 +34,9 @@ export function Providers({ children }: { children: ReactNode }) {
     <QueryClientProvider client={getQueryClient()}>
       <AuthProvider>
         <PrivacyProvider>
-          <RealtimeProvider>{children}</RealtimeProvider>
+          <RealtimeProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </RealtimeProvider>
         </PrivacyProvider>
       </AuthProvider>
     </QueryClientProvider>

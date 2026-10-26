@@ -11,6 +11,7 @@ let realtime: RealtimeStatus = "idle";
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/lib/auth/auth-provider", () => ({ useAuth: () => ({ state: authState, login: vi.fn(), logout }) }));
 vi.mock("@/lib/realtime/realtime-provider", () => ({ useRealtimeStatus: () => realtime }));
+vi.mock("./AppNav", () => ({ AppNav: () => null }));
 
 import { PrivacyProvider, resetPrivacyForTests } from "@/lib/privacy";
 import { AppHeader } from "./AppHeader";
