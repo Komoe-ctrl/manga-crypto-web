@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Code généré par `npm run api:types` : jamais édité à la main, régénéré à chaque changement de l'API.
+    "src/lib/api/**",
   ]),
 ]);
 
