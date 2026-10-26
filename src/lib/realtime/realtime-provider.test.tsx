@@ -98,7 +98,7 @@ describe("RealtimeProvider", () => {
 
     expect(screen.getByTestId("direct").textContent).toBe("open");
     // Aucun événement n'est rejoué : à chaque ouverture, tout est relu.
-    expect(invalidatedKeys().sort()).toEqual(["notifications", "orders", "portfolio", "risk"]);
+    expect(invalidatedKeys().sort()).toEqual(["digests", "notifications", "orders", "portfolio", "push", "risk", "settings"]);
   });
 
   it("un ordre exécuté relit les ordres et le portefeuille, rien d'autre", () => {
@@ -129,7 +129,7 @@ describe("RealtimeProvider", () => {
 
     invalidate.mockClear();
     act(() => socket.serverSends({ event: "notification", data: { id: "n1" } }));
-    expect(invalidatedKeys()).toEqual(["notifications"]);
+    expect(invalidatedKeys()).toEqual(["notifications", "digests"]);
   });
 
   it("à la déconnexion de l'application (démontage), ferme proprement la connexion", () => {

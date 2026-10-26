@@ -54,14 +54,41 @@ Défauts trouvés en chemin :
 ### F12. Limites
 Pas de page d'inscription (l'inscription de l'API est fermée une fois le compte créé), pas de « mot de passe oublié » (hors SPEC MVP) ; une panne réseau au chargement de la page affiche l'écran de connexion (on ne peut pas distinguer « pas connecté » de « serveur injoignable » sans session en mémoire) ; le test de bout en bout en navigateur reste à faire.
 
+## Étape 19 : réglages, rapports, notifications Push
+
+### F13. Périmètre
+Navigation (Tableau de bord, Rapports, Réglages), page Réglages (Mode Nuit, rapport du matin, canaux, message de test), page Rapports (matin, hier, 7 jours, historique) et abonnement Push avec service worker. **Alertes et ordres : étape 20.** Aucune dépendance ajoutée : le service worker est un fichier statique, les tests tournent sur Vitest déjà en place.
+
+### F14. Réglages : modification immédiate, optimiste, avec retour arrière
+Chaque réglage s'applique au clic (pas de bouton « Enregistrer » à oublier). La valeur change tout de suite dans le cache ; si l'API refuse, elle est remise et un message lisible s'affiche (les 400 et 422 de l'API sont traduits par `apiErrorMessage`). Les champs texte (Telegram, e-mail) s'enregistrent à la sortie du champ ou sur Entrée, après une validation locale légère ; l'API reste l'autorité. Activer Telegram sans identifiant de conversation est refusé avant même l'appel.
+
+### F15. Push : l'état réel de l'appareil prime sur ce que dit l'API
+Le bouton ne se fie pas au seul compteur serveur : il croise l'état du navigateur (permission, abonnement local) et celui de l'API. Cela donne des états distincts et expliqués : non pris en charge, non configuré côté serveur, bloqué par le navigateur, désactivé, **à renouveler** (abonnement local sans équivalent serveur) et actif. L'abonnement navigateur est supprimé si l'API refuse l'inscription (hôte de service push inconnu : 422), pour ne pas laisser un abonnement orphelin ; à la désactivation, il est supprimé même si l'API ne répond pas.
+
+### F16. Service worker : minimal et défensif
+`public/sw.js` affiche la notification et rouvre ou ramène l'application au clic. Il n'a pas de cache et n'intercepte aucune requête. Les alertes critiques restent affichées jusqu'à action (`requireInteraction`) et ont leur propre `tag`, pour qu'une alerte normale ne les remplace pas. Servi avec `Cache-Control: no-cache` et une CSP stricte (recommandation Next.js) : une mise à jour du fichier est vue au prochain chargement.
+
+### F17. Rapports : la lecture, pas le tableau de bord
+Trois onglets (Ce matin, Hier, 7 jours), chacun avec un état vide expliqué (« pas encore de rapport, le premier arrive à 08:00 »), la durée de lecture annoncée et le décompte des alertes regroupées par le Mode Nuit. Le nombre de non-lus de la navigation vient du `unreadCount` de la liste quotidienne : **vérifié dans le code de l'API**, il compte tous les rapports non lus quelle que soit la période (une première version recomposait ce total côté front, inutilement).
+
+### F18. Vérification et défaut trouvé
+- **Défaut trouvé par un test** : `sw.js` plantait si le message Push était le JSON `null` (rien n'était affiché, et l'événement échouait). Une charge utile qui n'est pas un objet est maintenant traitée comme vide ; la notification s'affiche avec le texte par défaut.
+- Le service worker est exécuté tel quel dans un bac à sable `vm` pendant les tests (pas une copie réécrite pour le test).
+- **Contre la vraie API** (base temporaire, API lancée sur un autre port) : lecture et modification partielle des réglages, refus d'une valeur invalide avec message, état Push, abonnement accepté, hôte inconnu refusé (422), retrait, listes de rapports vides sur compte neuf, message de test accepté. Front compilé servi en production : `/rapports`, `/reglages` et `/sw.js` répondent 200, avec les en-têtes prévus pour ce dernier.
+- Tests : 390 passent en mémoire, 11 « réels » ignorés sans API.
+*Non couvert :* **aucun navigateur n'a été piloté** et **aucune vraie notification Push n'a été reçue** : cela demande un navigateur, `localhost` ou https, et des clés VAPID configurées côté API. Le rendu visuel reste à regarder à l'œil.
+
+### F19. Limites
+`pushsubscriptionchange` n'est pas géré (si le navigateur renouvelle l'abonnement de lui-même, l'état « à renouveler » le signale à la prochaine visite, rien n'est refait en arrière-plan) ; l'identifiant Telegram doit être saisi à la main ; pas de choix de la sonnerie ni du détail des alertes (hors SPEC MVP).
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| Alertes, rapports du matin, Mode Nuit | Reste de la maquette ; l'API est prête (`/alerts`, `/digests`, `/notifications/settings`) |
-| Service worker et abonnement Push | Le Push n'atteindra personne sans lui ; contrat dans `crypto-api/docs/SPEC.md`, section 9 |
+| Alertes (liste, création, suppression) | Reste de la maquette ; l'API est prête (`/alerts`). Rapports, Mode Nuit et réglages : faits à l'étape 19 |
+| Réception Push vérifiée dans un vrai navigateur | Service worker et abonnement faits (étape 19), mais jamais exercés avec un vrai service push |
 | Ordres PAPER, kill switch, état du robot | L'API est prête ; les événements `order` et `risk` arrivent déjà en direct |
 | Courbes de 7 jours, variation sur 24 h, état du marché | Absents de l'API : il faut un endpoint d'historique de prix et de variation, côté `crypto-api` |
 | Test de bout en bout en navigateur (Playwright) | Seul moyen de vérifier rendu, hydratation et clavier ; dépendance à proposer |

@@ -3,6 +3,7 @@
 import { Eye, EyeOff, LogOut } from "lucide-react";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { usePrivacy } from "@/lib/privacy";
+import { AppNav } from "./AppNav";
 import { useRealtimeStatus } from "@/lib/realtime/realtime-provider";
 
 const LIVE_LABEL = { open: "En direct", connecting: "Connexion…", reconnecting: "Reconnexion…", idle: "" } as const;
@@ -24,6 +25,8 @@ export function AppHeader() {
           <span className="text-xs text-muted">Votre portefeuille veille pour vous</span>
         </div>
       </div>
+
+      <AppNav />
 
       <div className="flex items-center gap-2.5">
         {status !== "idle" && (

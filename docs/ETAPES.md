@@ -80,3 +80,54 @@ L'API (`crypto-api`) doit tourner et autoriser l'origine du front (`WEB_ORIGIN`,
 `npm run typecheck`, `npm run lint`, `npm test` (199 tests), `npm run build` : OK. Vérification contre la vraie API et front compilé servi en production : voir F11.
 
 **Pas encore fait** : alertes, rapports, réglages, Push (service worker), ordres, courbes de prix (à ajouter côté API), test de bout en bout en navigateur.
+
+
+## Étape 19 : réglages, rapports, notifications Push
+
+### Ce que l'on voit
+
+- **Navigation** dans l'en-tête : Tableau de bord, Rapports, Réglages. Un point signale les rapports non lus (avec un texte pour les lecteurs d'écran).
+- **Réglages** (`/reglages`) : Mode Nuit (interrupteur, heures de début et de fin), rapport du matin (interrupteur, heure), canaux Push / Telegram / E-mail, bouton « Envoyer un message de test » avec le verdict par canal.
+- **Rapports** (`/rapports`) : rapport « Ce matin », « Hier » ou « 7 jours », à marquer comme lu, et l'historique des jours précédents.
+- **Messages** : de petites bulles (`role=status` en information, `role=alert` en erreur, plus durables) confirment ou expliquent chaque action.
+
+### Organisation du code
+
+| Dossier / fichier | Rôle |
+|---|---|
+| `src/app/(app)/reglages`, `rapports` | Les deux pages |
+| `src/components/settings/` | Mode Nuit, canaux, bouton Push, message de test |
+| `src/components/reports/` | Carte de rapport (onglets) et historique |
+| `src/components/shell/AppNav.tsx` | Navigation et pastille de non-lus |
+| `src/components/ui/toast.tsx`, `switch.tsx` | Messages et interrupteur accessible |
+| `src/lib/queries/` | `settings`, `digests`, `push` (TanStack Query ; réglages optimistes avec retour arrière) |
+| `src/lib/push/` | Détection de prise en charge, abonnement / désabonnement, hook `usePush` |
+| `public/sw.js` | Service worker : affiche la notification, rouvre l'application au clic |
+| `src/lib/time.ts`, `api-error.ts`, `delivery.ts` | Heures et dates (fuseau de l'utilisateur), messages d'erreur de l'API, explication des échecs d'envoi |
+
+Le temps réel invalide désormais aussi les clés `settings`, `digests`, `push` ; un événement `notification` actualise les rapports et le compteur de non-lus.
+
+### Activer le Push (mode d'emploi)
+
+1. **Côté API** : générer des clés VAPID et renseigner les variables de `crypto-api` (voir sa documentation). Sans elles, le bouton affiche « Non configuré côté serveur ».
+2. **Côté navigateur** : ouvrir le front en `http://localhost` ou en https (le service worker l'exige), puis Réglages > Push > Activer et accepter la permission.
+3. Cliquer sur **Envoyer un message de test** : le verdict de chaque canal s'affiche (limité à 3 par minute).
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| « Non pris en charge » | Navigateur sans Push, ou page ni en https ni en `localhost` |
+| « Non configuré côté serveur » | Clés VAPID absentes côté API |
+| « Bloqué par le navigateur » | Permission refusée : à rétablir dans les réglages du site du navigateur |
+| « À renouveler » | Le navigateur a un abonnement que l'API ne connaît plus : désactiver puis réactiver |
+| Échec « hôte non reconnu » (422) | L'adresse d'abonnement n'est pas celle d'un service push connu de l'API |
+| Échec `push_subscription_gone` | Le service push signale l'abonnement comme disparu : désactiver puis réactiver |
+| « Trop de tentatives » sur le test | Limite de 3 messages de test par minute |
+| 5 appareils déjà inscrits | Limite de l'API : en retirer un avant d'en ajouter |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (390 tests), `npm run build`  : OK. `npm run test:real` : 11 tests contre une vraie API (3 nouveaux : réglages, Push, rapports et message de test). Le service worker est exécuté en bac à sable pendant les tests ; il a révélé un défaut (message `null`), corrigé. Détail dans F18.
+
+**Pas encore fait** : alertes, ordres PAPER et kill switch (étape 20), courbes de prix (à ajouter côté API), réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur.

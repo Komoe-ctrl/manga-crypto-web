@@ -115,6 +115,69 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     expect(data.currency).toBe("USD");
   });
 
+  it("réglages : lecture, modification partielle, refus des valeurs invalides avec un message lisible", async () => {
+    const { data: initial } = await sdk.notificationsControllerGetSettings({ throwOnError: true });
+    expect(initial.nightModeEnabled).toBeTypeOf("boolean");
+    expect(initial.digestMinute).toBeTypeOf("number");
+
+    const { data: updated } = await sdk.notificationsControllerUpdateSettings({
+      body: { nightModeEnabled: false, digestMinute: 9 * 60 + 30 },
+      throwOnError: true,
+    });
+    expect(updated.nightModeEnabled).toBe(false);
+    expect(updated.digestMinute).toBe(570);
+    expect(updated.nightStartMinute).toBe(initial.nightStartMinute); // un PATCH partiel ne touche pas le reste
+
+    const refused = await sdk.notificationsControllerUpdateSettings({ body: { digestMinute: 5000 } });
+    expect(refused.response.status).toBe(400);
+    const { apiErrorMessage } = await import("@/lib/api-error");
+    expect(apiErrorMessage(refused.error, "repli")).not.toBe("repli");
+
+    // On remet les réglages d'origine.
+    await sdk.notificationsControllerUpdateSettings({
+      body: { nightModeEnabled: initial.nightModeEnabled, digestMinute: initial.digestMinute },
+      throwOnError: true,
+    });
+  });
+
+  it("notifications push : état serveur, abonnement valide accepté, hôte inconnu refusé, retrait", async () => {
+    const { data: status } = await sdk.notificationsControllerPushStatus({ throwOnError: true });
+    expect(status.subscriptions).toBe(0);
+    expect(typeof status.configured).toBe("boolean");
+
+    const { createECDH, randomBytes } = await import("node:crypto");
+    const ecdh = createECDH("prime256v1");
+    ecdh.generateKeys();
+    const keys = {
+      p256dh: ecdh.getPublicKey().toString("base64url"),
+      auth: randomBytes(16).toString("base64url"),
+    };
+    const endpoint = "https://fcm.googleapis.com/fcm/send/front-real-test";
+
+    const added = await sdk.notificationsControllerAddPushSubscription({ body: { endpoint, keys }, throwOnError: true });
+    expect(added.data.subscriptions).toBe(1);
+
+    const foreign = await sdk.notificationsControllerAddPushSubscription({
+      body: { endpoint: "https://exemple.invalid/push/abc", keys },
+    });
+    expect(foreign.response.status).toBe(422);
+
+    const removed = await sdk.notificationsControllerRemovePushSubscription({ body: { endpoint }, throwOnError: true });
+    expect(removed.data.subscriptions).toBe(0);
+  });
+
+  it("rapports : listes du jour et de la semaine, vides sur un compte neuf, et message de test avec son verdict", async () => {
+    const day = await sdk.digestsControllerList({ query: { period: "TODAY", limit: 14 }, throwOnError: true });
+    const week = await sdk.digestsControllerList({ query: { period: "WEEK", limit: 4 }, throwOnError: true });
+    expect(day.data.items).toEqual([]);
+    expect(day.data.unreadCount).toBe(0);
+    expect(week.data.items).toEqual([]);
+
+    const test = await sdk.notificationsControllerTest({ throwOnError: true });
+    expect(test.data).toBeDefined();
+    console.info("[réel] message de test →", JSON.stringify(test.data));
+  });
+
   it("temps réel : un ordre PAPER passé par l'API arrive en direct, du premier au dernier état", async () => {
     await sdk.portfolioControllerSet({
       path: { symbol: "USDT" },
