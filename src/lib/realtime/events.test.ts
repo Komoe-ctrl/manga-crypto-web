@@ -43,7 +43,7 @@ describe("keysToInvalidate", () => {
   });
 
   it("une notification relit la boîte de réception et les rapports", () => {
-    expect(keysToInvalidate(message("notification"))).toEqual([queryKeys.notifications, queryKeys.digests]);
+    expect(keysToInvalidate(message("notification"))).toEqual([queryKeys.notifications, queryKeys.digests, queryKeys.alerts]);
   });
 
   it("ALL_KEYS couvre toutes les données (relues à chaque reconnexion, rien n'est rejoué)", () => {

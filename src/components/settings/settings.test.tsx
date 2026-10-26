@@ -17,6 +17,9 @@ vi.mock("@/lib/api/sdk.gen", () => ({
   notificationsControllerPushStatus: (...a: unknown[]) => pushStatus(...a),
   notificationsControllerAddPushSubscription: (...a: unknown[]) => addPush(...a),
   notificationsControllerRemovePushSubscription: (...a: unknown[]) => removePush(...a),
+  // Les garde-fous de risque ont leur propre fichier de tests (risk-card.test.tsx) : ici, des valeurs fixes.
+  riskControllerGetSettings: async () => ({ data: { maxExposurePct: 10, maxDailyLossPct: 5, defaultStopLossPct: 5, defaultTakeProfitPct: 10 } }),
+  riskControllerUpdateSettings: async () => ({ data: { maxExposurePct: 10, maxDailyLossPct: 5, defaultStopLossPct: 5, defaultTakeProfitPct: 10 } }),
 }));
 vi.mock("@/lib/auth/auth-provider", () => ({
   useAuth: () => ({

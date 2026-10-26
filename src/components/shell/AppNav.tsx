@@ -6,6 +6,7 @@ import { useUnreadDigests } from "@/lib/queries/digests";
 
 const ITEMS = [
   { href: "/", label: "Tableau de bord" },
+  { href: "/alertes", label: "Alertes" },
   { href: "/rapports", label: "Rapports" },
   { href: "/reglages", label: "Réglages" },
 ] as const;

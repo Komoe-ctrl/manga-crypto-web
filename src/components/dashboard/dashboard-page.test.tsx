@@ -14,6 +14,9 @@ interface QueryState {
 const refetch = vi.fn(async () => undefined);
 let query: QueryState;
 vi.mock("@/lib/queries/portfolio", () => ({ usePortfolio: () => query }));
+// Les cartes du robot et des ordres ont leurs propres tests (bot.test.tsx, orders.test.tsx) : ici, seul le portefeuille compte.
+vi.mock("@/components/bot/BotStatusCard", () => ({ BotStatusCard: () => null }));
+vi.mock("@/components/orders/OrdersCard", () => ({ OrdersCard: () => null }));
 
 import { Dashboard } from "./Dashboard";
 

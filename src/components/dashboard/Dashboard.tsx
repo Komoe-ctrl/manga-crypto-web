@@ -1,5 +1,7 @@
 "use client";
 
+import { BotStatusCard } from "@/components/bot/BotStatusCard";
+import { OrdersCard } from "@/components/orders/OrdersCard";
 import { Glass } from "@/components/ui/glass";
 import { usePortfolio } from "@/lib/queries/portfolio";
 import { AssetsTable } from "./AssetsTable";
@@ -35,8 +37,10 @@ export function Dashboard() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
+      <BotStatusCard />
       <WalletHeader portfolio={portfolio} />
       <AssetsTable assets={portfolio.assets} currency={portfolio.currency} />
+      <OrdersCard />
     </div>
   );
 }
