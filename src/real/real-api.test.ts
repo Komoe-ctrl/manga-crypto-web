@@ -129,7 +129,7 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     expect(updated.nightStartMinute).toBe(initial.nightStartMinute); // un PATCH partiel ne touche pas le reste
 
     const refused = await sdk.notificationsControllerUpdateSettings({ body: { digestMinute: 5000 } });
-    expect(refused.response.status).toBe(400);
+    expect(refused.response?.status).toBe(400);
     const { apiErrorMessage } = await import("@/lib/api-error");
     expect(apiErrorMessage(refused.error, "repli")).not.toBe("repli");
 
@@ -160,7 +160,7 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     const foreign = await sdk.notificationsControllerAddPushSubscription({
       body: { endpoint: "https://exemple.invalid/push/abc", keys },
     });
-    expect(foreign.response.status).toBe(422);
+    expect(foreign.response?.status).toBe(422);
 
     const removed = await sdk.notificationsControllerRemovePushSubscription({ body: { endpoint }, throwOnError: true });
     expect(removed.data.subscriptions).toBe(0);
@@ -176,6 +176,73 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     const test = await sdk.notificationsControllerTest({ throwOnError: true });
     expect(test.data).toBeDefined();
     console.info("[réel] message de test →", JSON.stringify(test.data));
+  });
+
+  it("alertes : création avec le corps du front, activation, suppression, doublon et valeur absurde refusés avec un message", async () => {
+    const { toCreateBody } = await import("@/lib/alerts");
+    const { apiErrorMessage } = await import("@/lib/api-error");
+    const drop = toCreateBody({ condition: "PRICE_DROP_PCT", assetSymbol: "btc", threshold: "5,5", windowMinutes: 1440, channel: "PUSH", isCritical: false });
+    const cross = toCreateBody({ condition: "PRICE_CROSS_ABOVE", assetSymbol: "eth", threshold: "9000", windowMinutes: 60, channel: "EMAIL", isCritical: true });
+    const portfolio = toCreateBody({ condition: "PORTFOLIO_DROP_PCT", assetSymbol: "", threshold: "10", windowMinutes: 240, channel: "PUSH", isCritical: false });
+
+    const a = await sdk.alertsControllerCreate({ body: drop, throwOnError: true });
+    const b = await sdk.alertsControllerCreate({ body: cross, throwOnError: true });
+    const c = await sdk.alertsControllerCreate({ body: portfolio, throwOnError: true });
+    expect(a.data).toMatchObject({ assetSymbol: "BTC", condition: "PRICE_DROP_PCT", windowMinutes: 1440, isActive: true, isTriggered: false });
+    expect(b.data).toMatchObject({ assetSymbol: "ETH", windowMinutes: null, isCritical: true });
+    expect(c.data).toMatchObject({ assetSymbol: null, condition: "PORTFOLIO_DROP_PCT" });
+
+    const { data: list } = await sdk.alertsControllerList({ throwOnError: true });
+    expect(list).toHaveLength(3);
+
+    const paused = await sdk.alertsControllerUpdate({ path: { id: a.data.id }, body: { isActive: false }, throwOnError: true });
+    expect(paused.data.isActive).toBe(false);
+
+    // Ce que le front n'enverrait jamais mais que l'API doit refuser : une fenêtre sur un franchissement.
+    const refused = await sdk.alertsControllerCreate({ body: { ...cross, windowMinutes: 60 } });
+    expect(refused.response?.status).toBeGreaterThanOrEqual(400);
+    expect(apiErrorMessage(refused.error, "repli")).not.toBe("repli");
+
+    for (const alert of list) await sdk.alertsControllerRemove({ path: { id: alert.id }, throwOnError: true });
+    expect((await sdk.alertsControllerList({ throwOnError: true })).data).toEqual([]);
+  });
+
+  it("garde-fous et kill switch : lecture, modification, arrêt d'urgence confirmé par l'API, ordre refusé avec son motif, reprise", async () => {
+    const { baseAsset, describeFailure } = await import("@/lib/orders");
+    const { apiErrorMessage, hasStatus } = await import("@/lib/api-error");
+
+    const { data: before } = await sdk.riskControllerGetSettings({ throwOnError: true });
+    expect(before.maxExposurePct).toBeTypeOf("number");
+    const saved = await sdk.riskControllerUpdateSettings({ body: { maxExposurePct: 12.5 }, throwOnError: true });
+    expect(saved.data.maxExposurePct).toBe(12.5);
+    expect(saved.data.maxDailyLossPct).toBe(before.maxDailyLossPct);
+    const tooMuch = await sdk.riskControllerUpdateSettings({ body: { maxExposurePct: 250 } });
+    expect(tooMuch.response?.status).toBe(400);
+    await sdk.riskControllerUpdateSettings({ body: { maxExposurePct: before.maxExposurePct }, throwOnError: true });
+
+    const { data: running } = await sdk.riskControllerStatus({ throwOnError: true });
+    expect(running).toMatchObject({ tradingMode: "PAPER", killSwitchActive: false, canTrade: true });
+
+    let resumed: Awaited<ReturnType<typeof sdk.riskControllerDeactivateKillSwitch>> | undefined;
+    try {
+    const { data: stopped } = await sdk.riskControllerActivateKillSwitch({ throwOnError: true });
+    expect(stopped).toMatchObject({ killSwitchActive: true, canTrade: false, blockedReason: "KILL_SWITCH" });
+
+    // Ordre pendant l'arrêt : 422, message en français, motif connu du front, et l'ordre est enregistré comme refusé.
+    const refused = await sdk.ordersControllerCreate({ body: { symbol: "BTC", side: "BUY", quantity: "0.001" } });
+    expect(refused.response?.status).toBe(422);
+    expect(hasStatus(refused.error, 422)).toBe(true);
+    expect(apiErrorMessage(refused.error, "repli")).toMatch(/kill switch/i);
+    const { data: orders } = await sdk.ordersControllerList({ query: { limit: 15 }, throwOnError: true });
+    // L'API renvoie la paire (« BTC/USDT ») : le front la ramène à l'actif pour l'affichage.
+    expect(orders.items[0]).toMatchObject({ status: "REJECTED", failureReason: "kill_switch", side: "BUY", symbol: "BTC/USDT" });
+    expect(baseAsset(orders.items[0].symbol)).toBe("BTC");
+    expect(describeFailure(orders.items[0].failureReason)).toMatch(/kill switch/);
+    } finally {
+      // Quoi qu'il arrive, le robot est relancé : les tests suivants passent des ordres.
+      resumed = await sdk.riskControllerDeactivateKillSwitch({ throwOnError: true });
+    }
+    expect(resumed.data).toMatchObject({ killSwitchActive: false, canTrade: true });
   });
 
   it("temps réel : un ordre PAPER passé par l'API arrive en direct, du premier au dernier état", async () => {

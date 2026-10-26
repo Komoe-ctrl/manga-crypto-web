@@ -1,4 +1,4 @@
-import type { DigestDto, NotificationSettingsDto } from "@/lib/api/types.gen";
+import type { AlertDto, DigestDto, NotificationSettingsDto, OrderDto, RiskSettingsDto, TradingStatusDto } from "@/lib/api/types.gen";
 
 export function settings(over: Partial<NotificationSettingsDto> = {}): NotificationSettingsDto {
   return {
@@ -28,6 +28,65 @@ export function digest(over: Partial<DigestDto> = {}): DigestDto {
     queuedAlertsCount: 2,
     readAt: null,
     generatedAt: "2026-10-23T06:00:00Z",
+    ...over,
+  };
+}
+
+export function tradingStatus(over: Partial<TradingStatusDto> = {}): TradingStatusDto {
+  return {
+    tradingMode: "PAPER",
+    tradingModeChangedAt: null,
+    killSwitchActive: false,
+    killSwitchAt: null,
+    botPausedUntil: null,
+    canTrade: true,
+    blockedReason: "KILL_SWITCH",
+    ...over,
+  };
+}
+
+export function riskSettings(over: Partial<RiskSettingsDto> = {}): RiskSettingsDto {
+  return { maxExposurePct: 10, maxDailyLossPct: 5, defaultStopLossPct: 5, defaultTakeProfitPct: 10, ...over };
+}
+
+export function order(over: Partial<OrderDto> = {}): OrderDto {
+  return {
+    id: "o1",
+    clientOrderId: "vl-1",
+    mode: "PAPER",
+    symbol: "BTC/USDT",
+    side: "BUY",
+    type: "MARKET",
+    status: "FILLED",
+    origin: "MANUAL",
+    quantity: "0.001",
+    filledQuantity: "0.001",
+    avgFillPrice: "68000",
+    fee: "0.068",
+    feeCurrency: "USDT",
+    stopLossPrice: null,
+    takeProfitPrice: null,
+    failureReason: null,
+    parentOrderId: null,
+    createdAt: "2026-10-23T09:00:00Z",
+    executedAt: "2026-10-23T09:00:01Z",
+    ...over,
+  };
+}
+
+export function alert(over: Partial<AlertDto> = {}): AlertDto {
+  return {
+    id: "a1",
+    assetSymbol: "BTC",
+    condition: "PRICE_DROP_PCT",
+    threshold: "5",
+    windowMinutes: 1440,
+    channel: "PUSH",
+    isActive: true,
+    isCritical: false,
+    isTriggered: false,
+    lastTriggeredAt: null,
+    createdAt: "2026-10-20T09:00:00Z",
     ...over,
   };
 }

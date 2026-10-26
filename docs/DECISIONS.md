@@ -81,15 +81,46 @@ Trois onglets (Ce matin, Hier, 7 jours), chacun avec un état vide expliqué («
 ### F19. Limites
 `pushsubscriptionchange` n'est pas géré (si le navigateur renouvelle l'abonnement de lui-même, l'état « à renouveler » le signale à la prochaine visite, rien n'est refait en arrière-plan) ; l'identifiant Telegram doit être saisi à la main ; pas de choix de la sonnerie ni du détail des alertes (hors SPEC MVP).
 
+## Étape 20 : alertes, ordres de simulation, robot et garde-fous
+
+### F20. Périmètre
+Page Alertes, carte « état du robot » avec arrêt d'urgence, historique des ordres et dialogue d'ordre manuel (tableau de bord), garde-fous de risque (Réglages). Aucune dépendance ajoutée. **Le passage en LIVE n'est pas proposé** : le backtest a conclu que la stratégie n'a pas d'avantage démontré (API, étape 16) et le passage en réel reste un acte explicite et audité, à faire par l'API. L'écran affiche le mode, il ne le change pas.
+
+### F21. Kill switch : jamais optimiste
+Les réglages bougent tout de suite (F14), pas l'arrêt d'urgence : l'écran n'affiche « robot arrêté » que lorsque l'API l'a **confirmé**, car c'est le moment où l'on a besoin de savoir la vérité. Pendant l'envoi, le bouton annonce « Arrêt en cours… » et l'état reste « actif ». Si la confirmation échoue, le message le dit et le robot reste affiché actif, avec le bouton pour réessayer. **L'arrêt est un clic ; la reprise demande une confirmation** : l'action sûre est rapide, l'action risquée est lente.
+
+### F22. Ordre manuel : deux temps, et un refus n'est pas une panne
+Saisie, puis récapitulatif à confirmer, même en simulation. Le bouton est inactif pendant l'envoi (pas de double ordre). Trois issues distinctes : **succès** (le dialogue se ferme, l'historique se met à jour), **refus d'un garde-fou** (422 : le message de l'API, déjà en français, est affiché et la saisie est conservée ; l'API *enregistre* l'ordre refusé, donc l'historique est relu), **échec réseau** (on ne dit pas « refusé », car l'ordre a pu partir : le message renvoie vers l'historique). Quantités et seuils restent des chaînes décimales, jamais des nombres à virgule ; seule la virgule est remplacée par un point.
+
+### F23. Modale accessible sans dépendance
+`ui/modal.tsx` : rôle `dialog`, Échap, focus placé dedans à l'ouverture, **gardé dedans** (Tab boucle), rendu à la fermeture. Le bouton d'origine est donné explicitement : Safari ne donne pas le focus à un bouton cliqué à la souris, le retrouver par l'élément actif ne marcherait pas.
+
+### F24. Alertes : un formulaire qui suit la condition
+Les champs affichés dépendent de la condition (variation : actif, % et durée ; franchissement : actif et prix, **sans** durée ; portefeuille : % et durée, sans actif). Le corps envoyé ne contient que ce que la condition accepte, car l'API refuse une durée sur un franchissement. Suppression avec confirmation, mise en pause immédiate avec retour arrière. Le temps réel relit aussi les alertes à chaque notification (une alerte déclenchée passe de « armée » à « déclenchée »).
+
+### F25. Garde-fous : on affiche ce que l'API a retenu
+Pas d'optimisme : ce sont des limites de sécurité. Chaque champ s'enregistre en sortant, avec une validation locale des bornes (0,01 à 100 %, 1000 % pour le take-profit) ; la valeur affichée après enregistrement est celle de la réponse.
+
+### F26. Vérification et défauts trouvés
+- **La paire, pas l'actif** : l'API reçoit « BTC » mais enregistre et renvoie « BTC/USDT ». Les tests unitaires, écrits avec des données que j'avais imaginées, passaient ; **le test contre la vraie API l'a révélé**. L'historique affichait « Achat BTC/USDT » ; `baseAsset` ramène à l'actif et les fixtures reprennent maintenant la forme réelle.
+- **Test réel qui laissait le robot arrêté** : une assertion échouée avant la reprise du kill switch faisait échouer tous les tests suivants en cascade. La reprise est maintenant dans un `finally`.
+- **Typecheck rouge à l'étape 19** : les tests réels ajoutés à la fin de l'étape 19 (`refused.response`, `foreign.response` possiblement `undefined`) n'avaient pas été re-contrôlés ; la PR #2 a été fusionnée avec `npm run typecheck` en échec sur ce fichier. Corrigé ici (`?.`). Les tests, eux, passaient.
+- **Libellés** : un correctif d'apostrophes (règle de lint sur le texte JSX) a changé des libellés que les tests cherchaient ; les tests ont été alignés.
+- **Contre la vraie API** (base temporaire, API sur un autre port) : création de trois alertes avec le corps construit par le front, mise en pause, refus d'une durée sur un franchissement, suppression ; lecture et modification des garde-fous, refus de 250 %; état du robot, **arrêt d'urgence confirmé, ordre refusé en 422 avec « kill switch » dans le message, enregistré comme refusé**, reprise.
+- Tests : 497 passent en mémoire, 13 « réels » ignorés sans API.
+*Non couvert :* **aucun navigateur n'a été piloté** (rendu, clavier réel, lecteur d'écran, piège à focus de la modale en vrai), et l'ordre accepté puis exécuté n'est vérifié par le front que via le test temps réel de l'étape 18.
+
+### F27. Limites
+Pas de modification du seuil d'une alerte existante (seulement pause et suppression, bien que l'API sache modifier) ; pas de pagination de l'historique des ordres (les 15 derniers) ; pas d'annulation d'ordre depuis l'écran (les ordres de marché PAPER sont exécutés immédiatement) ; pas d'ordre limite.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| Alertes (liste, création, suppression) | Reste de la maquette ; l'API est prête (`/alerts`). Rapports, Mode Nuit et réglages : faits à l'étape 19 |
 | Réception Push vérifiée dans un vrai navigateur | Service worker et abonnement faits (étape 19), mais jamais exercés avec un vrai service push |
-| Ordres PAPER, kill switch, état du robot | L'API est prête ; les événements `order` et `risk` arrivent déjà en direct |
+| Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
 | Courbes de 7 jours, variation sur 24 h, état du marché | Absents de l'API : il faut un endpoint d'historique de prix et de variation, côté `crypto-api` |
 | Test de bout en bout en navigateur (Playwright) | Seul moyen de vérifier rendu, hydratation et clavier ; dépendance à proposer |
 | Audit d'accessibilité (lecteur d'écran, contrastes) | Non fait au-delà des libellés et rôles testés |

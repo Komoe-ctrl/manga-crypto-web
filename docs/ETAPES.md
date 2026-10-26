@@ -131,3 +131,47 @@ Le temps réel invalide désormais aussi les clés `settings`, `digests`, `push`
 `npm run typecheck`, `npm run lint`, `npm test` (390 tests), `npm run build`  : OK. `npm run test:real` : 11 tests contre une vraie API (3 nouveaux : réglages, Push, rapports et message de test). Le service worker est exécuté en bac à sable pendant les tests ; il a révélé un défaut (message `null`), corrigé. Détail dans F18.
 
 **Pas encore fait** : alertes, ordres PAPER et kill switch (étape 20), courbes de prix (à ajouter côté API), réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur.
+
+
+## Étape 20 : alertes, ordres de simulation, robot et garde-fous
+
+### Ce que l'on voit
+
+- **Tableau de bord** : en haut, l'**état du robot** (actif / arrêté / en pause, mode Simulation ou Réel) avec le bouton **Arrêt d'urgence** ; sous les actifs, les **derniers ordres** et le bouton **Passer un ordre**.
+- **Alertes** (`/alertes`) : liste (armée, déclenchée, en pause, critique), interrupteur de pause, suppression avec confirmation, et formulaire de création.
+- **Réglages** : nouvelle carte **Garde-fous du robot** (exposition maximale, perte journalière maximale, stop-loss et take-profit par défaut).
+
+### Organisation du code
+
+| Dossier / fichier | Rôle |
+|---|---|
+| `src/components/bot/` | Carte d'état du robot et arrêt d'urgence |
+| `src/components/orders/` | Historique des ordres, dialogue d'ordre (saisie puis confirmation) |
+| `src/components/alerts/` | Page, ligne d'alerte, formulaire de création |
+| `src/components/settings/RiskCard.tsx` | Garde-fous |
+| `src/components/ui/modal.tsx`, `query-state.tsx` | Modale accessible ; chargement et erreur d'une carte |
+| `src/lib/queries/` | `alerts`, `risk`, `orders` |
+| `src/lib/orders.ts`, `alerts.ts` | Libellés, validation locale, motifs de refus en français, corps envoyés à l'API |
+
+### Utiliser
+
+1. **Arrêt d'urgence** : un clic, aucun ordre ne part tant que le robot est arrêté (automatique ou manuel). **Réactiver** demande une confirmation.
+2. **Passer un ordre** : sens, actif, quantité, puis « Vérifier l'ordre » et « Confirmer l'ordre ». Seul le mode **Simulation** l'accepte.
+3. **Créer une alerte** : choisir la condition (les champs s'adaptent), l'actif, le seuil et le canal ; « Alerte critique » la fait passer même en Mode Nuit.
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| « Ordre refusé : Le robot est arrêté (kill switch actif) » | Arrêt d'urgence actif : réactiver le robot |
+| « Ordre refusé : … perte journalière maximale atteinte » | Pause automatique ; reprise indiquée sur la carte |
+| « Ordre refusé : Fonds insuffisants » ou « Exposition maximale… » | Garde-fou de l'API ; ajuster la quantité ou les garde-fous |
+| « Impossible de joindre le serveur… Vérifiez l'historique » | Réseau coupé pendant l'envoi : l'ordre a pu partir, regarder « Derniers ordres » avant de recommencer |
+| « Les ordres manuels ne sont disponibles qu'en mode simulation » | Le compte est en mode réel |
+| Une alerte reste « Déclenchée » | La condition est toujours remplie et l'utilisateur a déjà été prévenu ; elle se réarme quand la condition cesse |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (497 tests), `npm run build` : OK. `npm run test:real` : 13 tests contre une vraie API (2 nouveaux : alertes ; garde-fous, kill switch et ordre refusé). Le test réel a révélé que l'API renvoie la **paire** (`BTC/USDT`) : défaut corrigé, détail dans F26.
+
+**Pas encore fait** : courbes de prix (à ajouter côté API), réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur.

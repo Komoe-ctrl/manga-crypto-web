@@ -13,6 +13,7 @@ export const queryKeys = {
   settings: ["settings"] as const,
   digests: ["digests"] as const,
   push: ["push"] as const,
+  alerts: ["alerts"] as const,
 };
 
 /** Données à relire quand ce message arrive. */
@@ -25,7 +26,8 @@ export function keysToInvalidate(message: RealtimeEventMessage): readonly (reado
       return [queryKeys.risk];
     case "notification":
       // Le rapport du matin est annoncé par une notification : on relit aussi les rapports (et leur pastille « Nouveau »).
-      return [queryKeys.notifications, queryKeys.digests];
+      // Une alerte qui se déclenche passe de « armée » à « déclenchée » et envoie une notification : on relit les alertes.
+      return [queryKeys.notifications, queryKeys.digests, queryKeys.alerts];
   }
 }
 

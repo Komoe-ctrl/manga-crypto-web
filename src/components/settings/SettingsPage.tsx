@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth/auth-provider";
 import { useSettings } from "@/lib/queries/settings";
 import { ChannelsCard } from "./ChannelsCard";
 import { NightModeCard } from "./NightModeCard";
+import { RiskCard } from "./RiskCard";
 
 /** Réglages : Mode Nuit, rapport du matin et canaux de notification. */
 export function SettingsPage() {
@@ -39,6 +40,7 @@ export function SettingsPage() {
     <div className="flex max-w-2xl flex-col gap-6">
       <NightModeCard settings={settings} />
       <ChannelsCard settings={settings} accountEmail={accountEmail} />
+      <RiskCard />
     </div>
   );
 }

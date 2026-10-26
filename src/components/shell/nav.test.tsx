@@ -21,11 +21,12 @@ beforeEach(() => {
 });
 
 describe("AppNav", () => {
-  it("propose les trois pages, vers les bonnes adresses", () => {
+  it("propose les quatre pages, vers les bonnes adresses", () => {
     render(<AppNav />);
     const links = screen.getAllByRole("link");
     expect(links.map((l) => [l.textContent?.trim(), l.getAttribute("href")])).toEqual([
       ["Tableau de bord", "/"],
+      ["Alertes", "/alertes"],
       ["Rapports", "/rapports"],
       ["Réglages", "/reglages"],
     ]);
