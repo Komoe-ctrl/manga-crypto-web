@@ -79,3 +79,24 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Modal : rendu dans <body>", () => {
+  it("n'est pas enfermée dans la carte qui l'ouvre (un parent avec backdrop-filter piège les éléments fixed)", () => {
+    render(
+      <section data-testid="carte" className="backdrop-blur-xl">
+        <Harness />
+      </section>,
+    );
+    const dialog = open();
+    expect(screen.getByTestId("carte").contains(dialog)).toBe(false);
+    expect(dialog.closest("section")).toBeNull();
+    expect(document.body.contains(dialog)).toBe(true);
+  });
+
+  it("disparaît du document à la fermeture", () => {
+    render(<Harness />);
+    const dialog = open();
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(document.querySelector("[role='dialog']")).toBeNull();
+  });
+});

@@ -33,7 +33,7 @@ L'œil de la maquette masque les montants (valeur, quantités, résultats), pas 
 
 ### F8. Design : les jetons du thème, une interface calme
 Couleurs de l'interface uniquement par les jetons de `globals.css` (`bg-canvas`, `text-gain`, `text-loss`…), aucun hex en dur. La teinte d'un actif (barre de répartition, pastille) est calculée de façon **stable à partir de son symbole**, sans palette codée en dur. Aucune animation qui clignote ; en dessous d'un centime, un résultat n'est ni vert ni orange.
-**Écarts assumés avec la maquette :** pas de courbes de 7 jours, pas de variation sur 24 h, pas de pastille « Marché : Haussier/Baissier », parce que **l'API ne les expose pas** (voir « À prévoir »). Le résultat affiché est celui **depuis l'achat**, libellé comme tel.
+**Écarts assumés avec la maquette :** pas de courbes de 7 jours, pas de variation sur 24 h, pas de pastille « Marché : Haussier/Baissier », parce que **l'API ne les expose pas** — **écart levé à l'étape 22 (F28)**. Le résultat affiché est celui **depuis l'achat**, libellé comme tel.
 
 ### F9. Next.js 16 : pages statiques, garde côté client
 `cacheComponents` est actif : les pages sont des coques statiques, les données arrivent côté client. La page protégée est entourée d'une garde (`RequireAuth`) qui n'affiche **rien de protégé** tant que la session n'est pas rétablie, et renvoie vers `/login` sinon. Le groupe de routes `(app)` porte l'en-tête et la garde communs.
@@ -113,6 +113,35 @@ Pas d'optimisme : ce sont des limites de sécurité. Chaque champ s'enregistre e
 ### F27. Limites
 Pas de modification du seuil d'une alerte existante (seulement pause et suppression, bien que l'API sache modifier) ; pas de pagination de l'historique des ordres (les 15 derniers) ; pas d'annulation d'ordre depuis l'écran (les ordres de marché PAPER sont exécutés immédiatement) ; pas d'ordre limite.
 
+## Étape 22 : courbes, variations, état du marché, et corrections de la recette visuelle
+
+### F28. Périmètre
+Variation sur 24 h et courbe de 7 jours par actif, pastille d'état du marché, et deux défauts relevés par l'utilisateur sur ses captures d'écran (F32). Les écarts avec la maquette listés en F8 (courbes, variation, état du marché) sont **levés** : l'API les expose depuis son étape 21 (`GET /api/portfolio/trends`, D116 à D119). Types régénérés depuis l'API fusionnée. Aucune dépendance ajoutée.
+
+### F29. Les tendances ne bloquent jamais le portefeuille
+`useTrends` est une requête à part : tant qu'elle n'a pas répondu, le tableau s'affiche sans courbes ni message ; si elle échoue, un message calme (« Les variations et courbes sont indisponibles pour le moment ») remplace les courbes, **sans alarme** : ce n'est pas l'essentiel. Un échec de rafraîchissement ne retire pas les courbes déjà affichées. Réponse partielle de l'API (`complete: false`) : message « Certaines courbes sont indisponibles », les autres lignes restent. La clé de cache commence par celle du portefeuille (tout ce qui relit le portefeuille relit les tendances) ; relecture toutes les 5 minutes, car l'API met ces données en cache 5 minutes.
+
+### F30. Courbe en SVG, sans bibliothèque de graphiques
+`ui/Sparkline.tsx` : une `<polyline>`, sans axes (la maquette n'en a pas). Verte si la courbe monte, orangée si elle baisse, grise si plate, **mais la couleur ne porte pas seule l'information** : l'image est nommée (« BTC sur 7 jours : +8,10 % ») pour les lecteurs d'écran et la colonne « 24 h » donne le chiffre. Les prix, chaînes décimales, ne sont convertis en nombres **que pour le tracé**. Sans au moins deux points lisibles : un tiret, pas d'image vide. Pour un actif coté depuis moins d'une semaine (pas de variation sur 7 jours), le nom de la courbe ne prétend pas qu'elle couvre 7 jours. Stablecoins et actifs sans données : tirets.
+
+### F31. État du marché : descriptif, et valeur possiblement absente
+Pastille « Marché en hausse / en baisse / calme · BTC −1,01 % sur 24 h », avec une infobulle qui dit que ce n'est pas un conseil (cohérent avec D118 de l'API : le backtest n'a démontré aucun avantage des indicateurs). **Contrat à surveiller :** l'API peut renvoyer `state: null` (BTC injoignable) mais le schéma généré le donne comme non nul, car le générateur ignore `nullable` sur une énumération. Le front relit donc la valeur lui-même (`marketState`) et n'affiche rien pour `null` ou une valeur inconnue : on ne devine pas. À corriger côté API (schéma) quand l'occasion se présente.
+
+### F32. Recette visuelle : deux défauts que les tests ne pouvaient pas voir
+L'utilisateur a parcouru l'application et envoyé des captures. Deux défauts réels :
+- **La fenêtre « Passer un ordre » restait enfermée dans sa carte**, minuscule, avec sa propre barre de défilement. Cause : les cartes (`Glass`) ont un `backdrop-filter`, et un tel parent devient le repère d'un élément `position: fixed`. La fenêtre est maintenant rendue dans `<body>` par un portail. **Les 497 tests de l'étape 20 ne pouvaient pas le voir** : jsdom ne fait aucune mise en page, il ne sait pas qu'un parent piège un élément fixe. Un test vérifie désormais que la fenêtre n'est pas dans la carte qui l'ouvre, mais seul un navigateur confirme le rendu.
+- **« En gain » et « En perte » passaient sur deux lignes** dans le filtre des actifs : `whitespace-nowrap`.
+Le reste (alertes, rapports, réglages, robot) a été jugé cohérent à la lecture des captures. Aucun navigateur n'est piloté par l'assistant : c'est la recette de l'utilisateur qui a trouvé ces défauts.
+
+### F33. Vérification et défaut trouvé
+- **Défaut trouvé par un test** : une valeur vide dans la série valait 0 pour `Number()` et aurait été tracée comme un vrai point à zéro. Les valeurs vides sont écartées.
+- **Contre la vraie API** (application construite depuis `main` de l'API, base temporaire, vrai Binance) : 42 points décimaux, variations 24 h et 7 jours, état du marché reconnu, **courbe qui finit à moins de 2 % du prix de la valorisation**, BTC non détenu absent des actifs.
+- Tests : 529 passent en mémoire, 14 « réels » ignorés sans API.
+*Non couvert :* **le rendu des courbes et de la fenêtre corrigée n'a pas été regardé** (aucun navigateur côté assistant) ; à vérifier à l'œil après avoir rechargé la page.
+
+### F34. Limites
+Pas de courbe pour les stablecoins (1 USD fixe) ; pas d'axes ni d'infobulle au survol ; la variation 24 h compare des clôtures horaires (D119) ; pas de choix de période.
+
 ---
 
 ## À prévoir
@@ -121,6 +150,6 @@ Pas de modification du seuil d'une alerte existante (seulement pause et suppress
 |---|---|
 | Réception Push vérifiée dans un vrai navigateur | Service worker et abonnement faits (étape 19), mais jamais exercés avec un vrai service push |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
-| Courbes de 7 jours, variation sur 24 h, état du marché | Absents de l'API : il faut un endpoint d'historique de prix et de variation, côté `crypto-api` |
+| Schéma de l'API : `market.state` nullable | Le schéma généré le donne non nul alors que l'API peut renvoyer `null` (F31) ; à corriger côté `crypto-api` |
 | Test de bout en bout en navigateur (Playwright) | Seul moyen de vérifier rendu, hydratation et clavier ; dépendance à proposer |
 | Audit d'accessibilité (lecteur d'écran, contrastes) | Non fait au-delà des libellés et rôles testés |

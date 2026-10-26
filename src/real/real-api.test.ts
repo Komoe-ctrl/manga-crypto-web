@@ -245,6 +245,36 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     expect(resumed.data).toMatchObject({ killSwitchActive: false, canTrade: true });
   });
 
+  it("tendances : vraies variations et vraie courbe de Binance, lues avec les fonctions du front", async () => {
+    const { marketState, trendOf } = await import("@/lib/queries/trends");
+    const { sparklinePoints, sparklineTrend } = await import("@/components/ui/Sparkline");
+
+    await sdk.portfolioControllerSet({ path: { symbol: "ETH" }, body: { quantity: "1", avgBuyPrice: "2000" }, throwOnError: true });
+    try {
+      const { data } = await sdk.portfolioControllerGetTrends({ throwOnError: true });
+
+      expect(data.assets.map((a) => a.symbol)).toEqual(["ETH"]); // le BTC sert au marché, il n'apparaît pas s'il n'est pas détenu
+      expect(["UP", "DOWN", "CALM", null]).toContain(marketState(data));
+      const eth = trendOf(data, "ETH")!;
+      // Binance doit être joignable pour ce test : une courbe vide signifierait une source en panne.
+      expect(eth.sparkline).toHaveLength(42);
+      expect(eth.sparkline.every((v) => /^\d+(\.\d+)?$/.test(v))).toBe(true); // chaînes décimales, pas d'exposant
+      expect(eth.change24hPct).toMatch(/^-?\d+(\.\d{1,2})?$/);
+      expect(eth.change7dPct).toMatch(/^-?\d+(\.\d{1,2})?$/);
+      expect(data.complete).toBe(true);
+      expect(sparklinePoints(eth.sparkline, 96, 32)).not.toBeNull();
+      expect(["up", "down", "flat"]).toContain(sparklineTrend(eth.sparkline));
+
+      // La courbe finit sur le prix du moment : même ordre de grandeur que la valorisation.
+      const { data: portfolio } = await sdk.portfolioControllerGet({ throwOnError: true });
+      const price = Number(portfolio.assets.find((a) => a.symbol === "ETH")!.currentPrice);
+      const last = Number(eth.sparkline.at(-1));
+      expect(Math.abs(last - price) / price).toBeLessThan(0.02);
+    } finally {
+      await sdk.portfolioControllerRemove({ path: { symbol: "ETH" }, throwOnError: true });
+    }
+  });
+
   it("temps réel : un ordre PAPER passé par l'API arrive en direct, du premier au dernier état", async () => {
     await sdk.portfolioControllerSet({
       path: { symbol: "USDT" },

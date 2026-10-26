@@ -199,7 +199,7 @@ describe("AssetsTable", () => {
 
   it("le tableau est accessible : intitulés de colonnes et titre de section", () => {
     render(<AssetsTable assets={SAMPLE.assets} currency="USD" />);
-    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Actif", "Quantité", "Prix", "Valeur", "P&L", "Part"]);
+    expect(screen.getAllByRole("columnheader").map((h) => h.textContent)).toEqual(["Actif", "Quantité", "Prix", "24 h", "7 jours", "Valeur", "P&L", "Part"]);
     expect(screen.getByRole("heading", { name: "Mes actifs" })).toBeTruthy();
   });
 });
