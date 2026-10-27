@@ -19,7 +19,7 @@ Next.js 16 (App Router, `src/`), React 19, TypeScript 6.0 strict, Tailwind CSS 4
 Types générés depuis la spec OpenAPI de crypto-api : `npm run api:types` (API démarrée sur le port 3001) → `src/lib/api`. Ne pas écrire les types de l'API à la main.
 
 ## Commandes
-`npm run dev` (http://localhost:3000) · `npm run typecheck` · `npm run lint` · `npm test` · `npm run build` · `npm run test:real` (contre une vraie API)
+`npm run dev` (http://localhost:3000) · `npm run typecheck` · `npm run lint` · `npm test` · `npm run build` · `npm run test:real` (contre une vraie API) · `npm run test:e2e` (vrai navigateur, voir docs/ETAPES.md étape 23 : Docker démarré, API construite, mémoire libre)
 
 Documentation : `docs/DECISIONS.md` (le pourquoi), `docs/ETAPES.md` (le quoi et le comment). À mettre à jour dans la même PR que le code.
 
