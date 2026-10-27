@@ -142,6 +142,36 @@ Le reste (alertes, rapports, réglages, robot) a été jugé cohérent à la lec
 ### F34. Limites
 Pas de courbe pour les stablecoins (1 USD fixe) ; pas d'axes ni d'infobulle au survol ; la variation 24 h compare des clôtures horaires (D119) ; pas de choix de période.
 
+## Étape 23 : tests dans un vrai navigateur (Playwright)
+
+### F35. Pourquoi, et ce qui est ajouté
+Les deux défauts relevés par l'utilisateur à l'étape 22 (fenêtre d'ordre coincée dans sa carte, filtres sur deux lignes) étaient invisibles pour des centaines de tests : jsdom ne fait aucune mise en page. Ajout de `@playwright/test`, **en dépendance de développement uniquement** (proposée et validée avant l'ajout). Aucun navigateur à télécharger : le Chromium attendu (révision 1248) était déjà installé sur la machine. Hors périmètre : intégration continue, test du Push réel.
+
+### F36. Un environnement jetable et isolé
+`npm run test:e2e` construit le front en production dans `.next-e2e` (variable `NEXT_DIST_DIR`, pour ne pas gêner un `npm run dev`), démarre l'API construite de `crypto-api` sur une **base neuve** `crypto_e2e` (créée, migrée puis supprimée) et le **Redis n° 9**, avec des ports dédiés (API 3996, front 3101) : ni la base de développement ni l'application de démonstration ne sont touchées. Le compte et le portefeuille de départ sont créés par l'API avant les tests. Prérequis : conteneurs `npm run db:up`, API construite (`npm run build` dans `crypto-api`, sur la branche à tester), accès à Binance (les courbes), et de la mémoire libre (F40).
+
+### F37. Un seul parcours, dans l'ordre
+Les tests forment **un parcours d'utilisateur** (13 étapes, un seul contexte de navigateur, un seul worker), pas des cas isolés. Raison : l'API limite connexion, inscription et renouvellement de session à **5 par minute** (limite `@Throttle` de ces routes dans `crypto-api`) ; se reconnecter à chaque test les dépasserait, et réutiliser le cookie de session dans plusieurs contextes déclencherait la détection de réutilisation du refresh token (qui révoque toute la session). Contrepartie : un échec arrête les étapes suivantes.
+
+### F38. Ce que le navigateur vérifie et que jsdom ne pouvait pas voir
+- **Mise en page mesurée** : filtres sur une seule ligne (hauteurs égales), fenêtre d'ordre entière dans l'écran, **centrée**, fond assombri couvrant toute la fenêtre, **pas dans une carte**, **sans défilement horizontal** ni à 1366 px ni à 390 px, courbe de 42 points réellement dessinée.
+- **Clavier réel** : Tab et Maj+Tab ne sortent jamais de la fenêtre, Échap la ferme et rend le focus au bouton d'origine.
+- **Session réelle** : le jeton n'est dans **aucun stockage** (ni localStorage, ni sessionStorage, ni cookie lisible) ; le cookie de renouvellement est `httpOnly`, `SameSite=Strict`, chemin `/api/auth` ; le rechargement de la page rétablit la session par ce cookie ; la déconnexion l'efface.
+- **Temps réel entre deux onglets** : un arrêt d'urgence décidé dans l'un apparaît dans l'autre sans rechargement.
+- Parcours fonctionnels : refus puis acceptation d'un ordre avec mise à jour du portefeuille, arrêt d'urgence et reprise, alertes (création, pause, suppression), réglages enregistrés et relus après rechargement. Des captures d'écran sont écrites dans `e2e/captures/` (ignoré par git).
+
+### F39. Défauts de l'application : aucun nouveau, et ce que les essais ont montré
+Treize parcours sur treize passent, dont ceux qui auraient échoué avant les corrections de l'étape 22 (fenêtre d'ordre, filtres). **La suite n'a révélé aucun nouveau défaut de l'application.** Ce qu'elle a révélé :
+- **Mes scénarios, pas l'application** : un achat de BTC supplémentaire est refusé à juste titre (le BTC pèse déjà 24 % du portefeuille pour un plafond de 10 %, « Exposition maximale par position dépassée ») ; le parcours vend donc. Et plusieurs sélecteurs trop larges (« Actif » correspondait aussi à « Quantité d'actif »).
+- **Une course sans conséquence** : à la déconnexion, la page change avant que la réponse de l'API qui efface le cookie soit arrivée ; le cookie disparaît dans l'instant qui suit (le test attend jusqu'à 5 s).
+- **Cosmétique relevé sur les captures, non corrigé** : en 390 px, la navigation passe sur deux lignes (« Réglages » à la ligne).
+
+### F40. Fragilités de l'environnement
+- **Mémoire** : sur cette machine (7,8 Go, souvent 0,2 à 0,5 Go libres avec d'autres serveurs de développement), le démarrage de l'API a dépassé 180 s une fois (délai porté à 300 s), et des processus de test Vitest ne démarrent pas (« Failed to start forks worker ») : ces exécutions sont incomplètes et ne comptent pas ; `npx vitest run --maxWorkers=2` donne un résultat complet.
+- **Coupure à la toute première requête** : l'API qui vient de démarrer a réinitialisé une fois la première connexion ; la préparation du compte rejoue les erreurs **réseau** (jamais une réponse HTTP).
+- **`next build` réécrit `tsconfig.json`** (tableaux réindentés, deux lignes d'inclusion pour `.next-e2e`) : la version écrite par Next est conservée pour qu'elle ne change plus.
+- Couverture : le **Push réel** et l'**audit d'accessibilité** restent non faits ; les tests ne tournent pas en intégration continue.
+
 ---
 
 ## À prévoir
@@ -151,5 +181,6 @@ Pas de courbe pour les stablecoins (1 USD fixe) ; pas d'axes ni d'infobulle au s
 | Réception Push vérifiée dans un vrai navigateur | Service worker et abonnement faits (étape 19), mais jamais exercés avec un vrai service push |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
 | Schéma de l'API : `market.state` nullable | Le schéma généré le donne non nul alors que l'API peut renvoyer `null` (F31) ; à corriger côté `crypto-api` |
-| Test de bout en bout en navigateur (Playwright) | Seul moyen de vérifier rendu, hydratation et clavier ; dépendance à proposer |
+| Tests de navigateur en intégration continue | Faits à l'étape 23 mais lancés à la main (Docker, API construite, mémoire libre) ; à brancher quand une intégration continue existera |
+| Navigation sur deux lignes en 390 px | Relevé sur les captures (F39) ; cosmétique |
 | Audit d'accessibilité (lecteur d'écran, contrastes) | Non fait au-delà des libellés et rôles testés |

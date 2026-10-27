@@ -211,3 +211,45 @@ Prérequis : une API qui expose `GET /api/portfolio/trends` (étape 21 de `crypt
 `npm run typecheck`, `npm run lint`, `npm test` (529 tests), `npm run build` : OK. `npm run test:real` : 14 tests contre une vraie API (1 nouveau : tendances avec les vraies données de Binance). Détail et limites dans F33 ; le rendu visuel reste à vérifier à l'œil.
 
 **Pas encore fait** : réception d'un vrai Push dans un navigateur, test de bout en bout en navigateur (Playwright), audit d'accessibilité.
+
+
+## Étape 23 : tests dans un vrai navigateur
+
+### Lancer
+
+```powershell
+# prérequis : Docker démarré, conteneurs de crypto-api (npm run db:up), API construite
+cd ..\crypto-api; npm run build; cd ..\crypto-web
+npm run test:e2e
+```
+
+La première exécution construit le front (environ une minute). Pour **itérer** sans le reconstruire quand le code du front n'a pas changé : `$env:E2E_SKIP_BUILD = "1"` avant la commande. Les captures d'écran sont dans `e2e/captures/`, les traces d'un échec dans `e2e/results/` (`npx playwright show-trace <trace.zip>`).
+
+### Organisation
+
+| Fichier | Rôle |
+|---|---|
+| `playwright.config.ts` | Un worker, un parcours ; démarre l'API et le front (`webServer`) |
+| `e2e/start-api.mjs` | Base `crypto_e2e` neuve, migrations, API construite de `crypto-api` (port 3996, Redis n° 9) |
+| `e2e/start-web.mjs` | Build de production dans `.next-e2e`, puis service (port 3101) |
+| `e2e/global-setup.ts`, `global-teardown.ts` | Compte et portefeuille de départ ; suppression de la base |
+| `e2e/env.ts` | Ports, identifiants et positions de départ |
+| `e2e/parcours.spec.ts` | Les 13 étapes du parcours |
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| « Timed out waiting … from config.webServer » | Machine chargée (mémoire) ou Docker arrêté ; fermer des serveurs de développement, vérifier `docker ps` |
+| « API non construite » | Lancer `npm run build` dans `crypto-api` |
+| « psql a échoué » | Le conteneur `crypto-postgres` ne tourne pas : `npm run db:up` |
+| « Courbe du BTC absente » | Binance injoignable depuis la machine |
+| Échec sur 429 ou « Trop de demandes » | Plus de 5 connexions ou renouvellements en une minute : attendre une minute |
+| Une étape échoue, les suivantes « did not run » | Normal : le parcours est séquentiel, corriger la première |
+| `tsconfig.json` modifié après un lancement | Réécriture par `next build` (F40) ; la version commitée la contient déjà |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (529 tests ; `--maxWorkers=2` si la mémoire manque), `npm run build` : OK. `npm run test:e2e` : 13 parcours sur 13. Détails, défauts et limites dans F35 à F40.
+
+**Pas encore fait** : réception d'un vrai Push dans un navigateur, tests de navigateur en intégration continue, audit d'accessibilité, navigation sur deux lignes en 390 px.

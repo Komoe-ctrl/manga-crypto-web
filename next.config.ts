@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Les tests de navigateur construisent dans un dossier à part (`.next-e2e`) pour ne pas gêner le serveur de développement.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
