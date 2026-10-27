@@ -287,3 +287,42 @@ Variables : `PUSH_WEB` (défaut `http://localhost:3100`), `PUSH_EMAIL`, `PUSH_PA
 `npm run typecheck`, `npm run lint`, `npm test`, `npm run build` : OK. `npm run test:e2e` : 13 parcours sur 13, dont la navigation sur une seule ligne sans défilement à 390 px. `npm run test:push` : OK. Détails, défauts et limites dans F41 à F46.
 
 **Pas encore fait** : essai sur un vrai téléphone, clic sur la notification, Chrome et Firefox, tests de navigateur en intégration continue, audit d'accessibilité.
+
+
+## Étape 25 : déclarer ses positions
+
+### Ce que l'on voit
+
+- **Mes actifs** : un bouton « Déclarer une opération » et un crayon par ligne. Un portefeuille vide affiche « Ajouter mon premier actif » avec une explication.
+- **La fenêtre « Déclarer une opération »** : trois modes (Achat, Vente, Corriger), l'actif, la quantité et le prix ; « Retirer cette position » dans le mode Corriger, avec confirmation.
+
+### Remplir un portefeuille (mode d'emploi pour le client)
+
+1. **Ce que l'on possède déjà** : « Ajouter mon premier actif » (ou « Déclarer une opération »), mode **Corriger**, saisir l'actif, la **quantité** et le **prix d'achat moyen** en dollars. Un actif par fois. De la trésorerie : actif USDT, prix 1.
+2. **Ensuite**, chaque achat : mode **Achat** ; chaque vente : mode **Vente**. Le prix d'achat moyen et les gains suivent.
+3. Une erreur : crayon sur la ligne, mode **Corriger**.
+
+### Organisation du code
+
+| Fichier | Rôle |
+|---|---|
+| `src/components/portfolio/PositionDialog.tsx` | La fenêtre (modes, validation, retrait confirmé) |
+| `src/lib/positions.ts` | Règles de validation (mêmes que l'API), libellés des modes |
+| `src/lib/queries/positions.ts` | Écritures `useRecordTransaction`, `useSetPosition`, `useRemovePosition` (relisent portefeuille et tendances) |
+| `src/components/dashboard/AssetsTable.tsx`, `Dashboard.tsx` | Bouton, crayons, écran d'accueil d'un portefeuille vide |
+
+### Diagnostiquer
+
+| Message | Cause |
+|---|---|
+| « Quantité insuffisante pour cette vente » | On vend plus que la quantité déclarée : corriger d'abord la position, ou vérifier la saisie |
+| « La position a été modifiée en parallèle, réessayez » | Deux appareils ont modifié la même position en même temps : réessayer |
+| « Cette position n'existe plus » | Retirée entre-temps (autre appareil) |
+| « Quantité invalide : un nombre positif, 18 décimales au plus » | Lettres, signe moins, trop de décimales ou plus de 20 chiffres entiers |
+| La nouvelle ligne n'a pas de courbe | L'actif n'est pas coté chez Binance en USDT (le prix reste indisponible, les totaux sont « partiels ») |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (601 tests), `npm run test:real` (15), `npm run test:e2e` (14 parcours, dont les positions) : OK. Détails et limites dans F47 à F52.
+
+**Pas encore fait** (voir la feuille de route dans « À prévoir ») : installation sur téléphone, mise en service hébergée, sauvegardes, historique des opérations (demande un changement côté API), import en bloc.

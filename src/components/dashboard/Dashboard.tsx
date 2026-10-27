@@ -1,7 +1,9 @@
 "use client";
 
 import { BotStatusCard } from "@/components/bot/BotStatusCard";
+import { PositionDialog } from "@/components/portfolio/PositionDialog";
 import { OrdersCard } from "@/components/orders/OrdersCard";
+import { useState } from "react";
 import { Glass } from "@/components/ui/glass";
 import { usePortfolio } from "@/lib/queries/portfolio";
 import { marketState, useTrends } from "@/lib/queries/trends";
@@ -13,6 +15,8 @@ export function Dashboard() {
   const { data: portfolio, error, isPending, refetch, isFetching } = usePortfolio();
   // Les tendances n'empêchent jamais d'afficher le portefeuille : en cas d'échec, seules les courbes manquent.
   const trends = useTrends();
+  // `symbol` absent : nouvelle opération ; présent : correction de cette position.
+  const [dialog, setDialog] = useState<{ symbol?: string } | null>(null);
 
   if (isPending) {
     return (
@@ -45,8 +49,25 @@ export function Dashboard() {
         portfolio={portfolio}
         market={trends.data ? { state: marketState(trends.data), btcChange24hPct: trends.data.market.btcChange24hPct } : undefined}
       />
-      <AssetsTable assets={portfolio.assets} currency={portfolio.currency} trends={trends.data} trendsFailed={trends.isError && !trends.data} />
+      <AssetsTable
+        assets={portfolio.assets}
+        currency={portfolio.currency}
+        trends={trends.data}
+        trendsFailed={trends.isError && !trends.data}
+        onAdd={() => setDialog({})}
+        onEdit={(symbol) => setDialog({ symbol })}
+      />
       <OrdersCard />
+
+      {dialog && (
+        <PositionDialog
+          key={dialog.symbol ?? "nouvelle"}
+          holdings={portfolio.assets}
+          currency={portfolio.currency}
+          symbol={dialog.symbol}
+          onClose={() => setDialog(null)}
+        />
+      )}
     </div>
   );
 }
