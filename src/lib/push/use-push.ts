@@ -25,6 +25,10 @@ const ERRORS: Record<string, string> = {
   denied: "Notifications refusées. Autorisez-les dans les réglages du navigateur, puis réessayez.",
   unsupported: "Ce navigateur ne gère pas les notifications Push.",
   incomplete_subscription: "Le navigateur a renvoyé un abonnement incomplet. Réessayez.",
+  browser_refused:
+    "Le navigateur a refusé l'abonnement. En navigation privée, le Push n'est pas disponible ; sinon, vérifiez les autorisations du site dans les réglages du navigateur.",
+  service_unreachable: "Le service de notifications du navigateur est injoignable. Vérifiez votre connexion (ou un pare-feu), puis réessayez.",
+  failed: "Le navigateur n'a pas pu activer les notifications. Réessayez, ou essayez un autre navigateur.",
 };
 
 export interface PushView {

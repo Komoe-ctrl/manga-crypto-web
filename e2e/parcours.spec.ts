@@ -129,12 +129,16 @@ test("ordre : la fenêtre couvre l'écran, centrée et entière, et son clavier 
   await expect(page.getByRole("button", { name: "Passer un ordre" })).toBeFocused();
 });
 
+// Valider un ordre oblige l'API à lire les prix chez Binance (jusqu'à 10 s par appel si la plateforme est lente) : ces deux
+// attentes sont plus longues que les autres, qui ne dépendent que de l'application.
+const SLOW_EXTERNAL = { timeout: 30_000 };
+
 test("ordre : refus d'un garde-fou expliqué, puis ordre accepté qui met le portefeuille à jour", async () => {
   let dialog = await openOrderDialog();
   await fillOrder(dialog, "btc", "1000"); // bien au-delà des fonds
   await expect(dialog.getByText("Au prix du marché", { exact: true })).toBeVisible(); // récapitulatif à confirmer
   await dialog.getByRole("button", { name: /Confirmer l.ordre/ }).click();
-  await expect(dialog.getByText(/Ordre refusé : /)).toBeVisible();
+  await expect(dialog.getByText(/Ordre refusé : /)).toBeVisible(SLOW_EXTERNAL);
   await expect(dialog).toBeVisible(); // retour à la saisie, rien n'est perdu
   await dialog.getByRole("button", { name: "Annuler" }).click();
   await expect(page.getByText("Refusé", { exact: true })).toBeVisible(); // l'ordre refusé est dans l'historique
@@ -145,7 +149,7 @@ test("ordre : refus d'un garde-fou expliqué, puis ordre accepté qui met le por
   await dialog.locator("label", { hasText: "Vente" }).click();
   await fillOrder(dialog, "btc", "0,001");
   await dialog.getByRole("button", { name: /Confirmer l.ordre/ }).click();
-  await expect(dialog).toBeHidden();
+  await expect(dialog).toBeHidden(SLOW_EXTERNAL);
   await expect(page.getByText(/Vente de 0\.001 BTC : exécuté/)).toBeVisible();
   await expect(page.getByText("Exécuté", { exact: true })).toBeVisible();
   // 0,05 − 0,001 : le portefeuille s'est relu tout seul après l'ordre.
@@ -246,6 +250,13 @@ test("petit écran : pas de défilement horizontal de la page, la fenêtre d'ord
   await page.reload();
   await expect(heading("Valeur totale du portefeuille")).toBeVisible();
   expect(await noHorizontalScroll()).toBe(true);
+
+  // La navigation tient sur une seule ligne (« Réglages » passait à la ligne) et sans avoir à défiler.
+  const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  const tops = await nav.getByRole("link").evaluateAll((links) => links.map((link) => Math.round(link.getBoundingClientRect().top)));
+  expect(tops).toHaveLength(4);
+  expect(new Set(tops).size, `Les liens de navigation sont sur plusieurs lignes : ${tops.join(", ")}`).toBe(1);
+  expect(await nav.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
   await shot("09-mobile-tableau-de-bord");
 
   const dialog = await openOrderDialog();

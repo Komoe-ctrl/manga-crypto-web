@@ -17,6 +17,9 @@ describe("apiErrorMessage", () => {
 
   it("réseau coupé : un message qui dit quoi faire, pas « Failed to fetch »", () => {
     expect(apiErrorMessage(new TypeError("Failed to fetch"), "x")).toContain("Impossible de joindre le serveur");
+    // Une autre exception (navigateur, code) n'expose jamais son texte technique : on affiche le message de repli.
+    expect(apiErrorMessage(new DOMException("Registration failed - permission denied", "NotAllowedError"), "repli")).toBe("repli");
+    expect(apiErrorMessage(new Error("ECONNRESET"), "repli")).toBe("repli");
   });
 
   it("429 et 401 ont leur propre message", () => {

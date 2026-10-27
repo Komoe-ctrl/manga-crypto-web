@@ -150,7 +150,7 @@ export type MarketDto = {
     /**
      * Indicateur descriptif d’après le BTC sur 24 h (±2 %) ; ce n’est pas un signal de trading. Null si indisponible
      */
-    state: 'UP' | 'DOWN' | 'CALM';
+    state: 'UP' | 'DOWN' | 'CALM' | null;
     btcChange24hPct: string | null;
 };
 

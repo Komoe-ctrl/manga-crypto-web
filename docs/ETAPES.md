@@ -253,3 +253,37 @@ La première exécution construit le front (environ une minute). Pour **itérer*
 `npm run typecheck`, `npm run lint`, `npm test` (529 tests ; `--maxWorkers=2` si la mémoire manque), `npm run build` : OK. `npm run test:e2e` : 13 parcours sur 13. Détails, défauts et limites dans F35 à F40.
 
 **Pas encore fait** : réception d'un vrai Push dans un navigateur, tests de navigateur en intégration continue, audit d'accessibilité, navigation sur deux lignes en 390 px.
+
+
+## Étape 24 : le Push réel, et la navigation sur téléphone
+
+### Ce que l'on voit
+
+- **Push** : Réglages > Notifications Push > « Activer sur cet appareil » abonne le navigateur ; « Envoyer un message de test » affiche une vraie notification. Les erreurs sont en français et disent quoi faire (navigation privée, pare-feu…).
+- **Téléphone** : la navigation tient sur une ligne, sans défiler, jusqu'à 360 px ; le premier lien s'appelle « Accueil » sous 640 px.
+
+### Vérifier le Push
+
+```powershell
+# prérequis : l'API a VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY / VAPID_SUBJECT (étape 24 de crypto-api), Edge installé
+npm run test:push               # abonnement, message de test, notification affichée, désabonnement
+npm run test:push -- --prive    # navigation privée : doit afficher le message « navigation privée »
+```
+
+Variables : `PUSH_WEB` (défaut `http://localhost:3100`), `PUSH_EMAIL`, `PUSH_PASSWORD`, `PUSH_HEADED=1` pour voir le navigateur. À la main : Réglages dans Edge ou Chrome en fenêtre normale (pas privée), « Activer sur cet appareil », accepter, puis « Envoyer un message de test ».
+
+### Diagnostiquer
+
+| Message ou symptôme | Cause probable |
+|---|---|
+| « Le navigateur a refusé l'abonnement. En navigation privée… » | Fenêtre privée (le Push n'y existe pas) ou autorisation du site refusée |
+| « Le service de notifications du navigateur est injoignable » | Pare-feu ou réseau qui bloque le service de notifications |
+| « Non configuré côté serveur » | Pas de clés VAPID dans l'API (étape 24 de crypto-api) |
+| « À renouveler » | Les clés VAPID ont changé : désactiver puis réactiver |
+| Rien ne s'affiche alors que le serveur dit « Push envoyé » | Notifications coupées dans Windows (concentration, « ne pas déranger ») |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test`, `npm run build` : OK. `npm run test:e2e` : 13 parcours sur 13, dont la navigation sur une seule ligne sans défilement à 390 px. `npm run test:push` : OK. Détails, défauts et limites dans F41 à F46.
+
+**Pas encore fait** : essai sur un vrai téléphone, clic sur la notification, Chrome et Firefox, tests de navigateur en intégration continue, audit d'accessibilité.

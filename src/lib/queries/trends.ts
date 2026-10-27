@@ -26,10 +26,10 @@ export function trendOf(trends: TrendsDto | undefined, symbol: string): AssetTre
 }
 
 /**
- * L'API renvoie `state: null` quand le BTC est injoignable, mais le schéma généré le donne comme non nul : on le
- * relit ici pour que l'écran ne suppose pas une valeur qui peut manquer.
+ * État du marché, ou `null` s'il est inconnu (BTC injoignable) ou si l'API en envoie un que ce front ne connaît pas
+ * encore : on n'affiche rien plutôt que de deviner.
  */
-export function marketState(trends: TrendsDto | undefined): MarketDto["state"] | null {
-  const state = (trends?.market as { state?: MarketDto["state"] | null } | undefined)?.state;
+export function marketState(trends: TrendsDto | undefined): MarketDto["state"] {
+  const state = trends?.market.state;
   return state === "UP" || state === "DOWN" || state === "CALM" ? state : null;
 }
