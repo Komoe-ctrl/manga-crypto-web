@@ -5,6 +5,9 @@
  */
 export function apiErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof TypeError) return "Impossible de joindre le serveur. Vérifiez votre connexion.";
+  // Une vraie exception (ex. DOMException du navigateur) a un `message` en anglais et technique : jamais affiché tel quel.
+  // Les erreurs de l'API, elles, sont des objets JSON simples.
+  if (error instanceof Error || (typeof DOMException !== "undefined" && error instanceof DOMException)) return fallback;
   if (typeof error !== "object" || error === null) return fallback;
 
   const { message, statusCode } = error as { message?: unknown; statusCode?: unknown };

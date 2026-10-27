@@ -172,15 +172,37 @@ Treize parcours sur treize passent, dont ceux qui auraient échoué avant les co
 - **`next build` réécrit `tsconfig.json`** (tableaux réindentés, deux lignes d'inclusion pour `.next-e2e`) : la version écrite par Next est conservée pour qu'elle ne change plus.
 - Couverture : le **Push réel** et l'**audit d'accessibilité** restent non faits ; les tests ne tournent pas en intégration continue.
 
+## Étape 24 : le Push vérifié pour de vrai, et trois défauts qu'il a révélés
+
+### F41. Périmètre
+Vérifier le Push de bout en bout avec un vrai service de notifications, corriger ce que cela révèle, et régler les deux défauts connus : le schéma de l'API pour `market.state` (côté `crypto-api`, D120) et la navigation sur téléphone. Aucune dépendance ajoutée.
+
+### F42. Le Push réel fonctionne, avec Edge
+`npm run test:push` (`e2e/push-reel.mjs`) pilote le **vrai Edge**, profil persistant, contre l'application de démonstration dont l'API a des clés VAPID : abonnement depuis l'écran Réglages, enregistrement par l'API, message de test, verdict « Push envoyé », **notification réellement affichée par le service worker**, désabonnement (l'appareil de test ne reste pas inscrit). Edge s'abonne via le service de Microsoft (`wns2-par02p.notify.windows.com`), pas via FCM. Le test n'est **pas** dans `npm run test:e2e` : il dépend d'un service externe et de clés VAPID, que la base jetable n'a pas. **Piège de l'outil :** un contexte jetable de Playwright est une navigation privée, où Chrome et Edge interdisent le Push ; il faut un profil persistant (`launchPersistentContext`).
+
+### F43. Défauts trouvés par cette vérification
+- **Un message d'erreur en anglais.** L'écran affichait « Registration failed - permission denied » : `apiErrorMessage` renvoyait la propriété `message` de **n'importe quel** objet, y compris l'exception du navigateur. Désormais une vraie exception (`Error`, `DOMException`) n'expose jamais son texte technique : seules les erreurs de l'API, objets JSON simples, sont affichées.
+- **Des causes lisibles à la place.** Les échecs de l'abonnement sont traduits en français avec ce qu'il faut faire : navigation privée ou autorisation refusée, service de notifications injoignable (pare-feu), échec générique.
+- **Ma supposition était fausse, le test réel l'a corrigée.** Je pensais qu'un refus du navigateur était une `NotAllowedError`. En navigation privée, Edge renvoie une `AbortError` dont le message est « permission denied » ; une vraie panne du service de notifications est aussi une `AbortError`, mais « push service error ». Sans le test réel, l'utilisateur en navigation privée aurait lu « service injoignable ». On distingue donc les deux par le message (fragile par nature : ce sont des textes internes au navigateur, connus ici pour Chrome et Edge ; un autre navigateur retombera sur « échec générique », qui reste correct).
+
+### F44. Navigation sur téléphone : deux essais avant le bon
+En 390 px, « Réglages » passait à la ligne. Un premier correctif (une seule ligne, marges réduites) la faisait tenir sur une ligne, mais **« Réglages » restait coupé** (16 px de débordement) : le contrôle strict ajouté au parcours navigateur (défilement horizontal de la barre) l'a vu, le contrôle de position seul non. Mesuré ensuite : réduire encore la police aurait nui à la lisibilité. Solution : sous 640 px, le premier lien affiche **« Accueil »** au lieu de « Tableau de bord », avec `aria-label="Tableau de bord"` (le nom accessible ne change pas, les lecteurs d'écran et les tests non plus). Mesuré dans Edge : la barre tient sans défiler à 430, 390, 375 et 360 px. La barre reste défilable en dernier recours.
+
+### F45. Schéma de l'API régénéré
+`market.state` est maintenant typé `'UP' | 'DOWN' | 'CALM' | null` : le contournement de F31 n'a plus lieu d'être ; `marketState` garde seulement la protection contre une valeur inconnue (version future de l'API).
+
+### F46. Vérification et limites
+- Parcours navigateur : 13 sur 13 (voir `docs/ETAPES.md` pour les chiffres). Push réel : OK avec Edge sur Windows ; message de navigation privée vérifié dans le vrai navigateur.
+- *Non couvert :* **un vrai téléphone** (Android, iOS/Safari), Chrome (FCM) et Firefox ; la notification est affichée par le service worker (vérifié), mais le **clic** sur la notification et la réception écran verrouillé ne sont pas vérifiés.
+- Le test réel utilise le compte de démonstration (`demo@veille.local`) et laisse l'appareil désabonné.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| Réception Push vérifiée dans un vrai navigateur | Service worker et abonnement faits (étape 19), mais jamais exercés avec un vrai service push |
+| Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
-| Schéma de l'API : `market.state` nullable | Le schéma généré le donne non nul alors que l'API peut renvoyer `null` (F31) ; à corriger côté `crypto-api` |
 | Tests de navigateur en intégration continue | Faits à l'étape 23 mais lancés à la main (Docker, API construite, mémoire libre) ; à brancher quand une intégration continue existera |
-| Navigation sur deux lignes en 390 px | Relevé sur les captures (F39) ; cosmétique |
 | Audit d'accessibilité (lecteur d'écran, contrastes) | Non fait au-delà des libellés et rôles testés |

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:real": "vitest run src/real",
     "test:e2e": "playwright test",
+    "test:push": "node e2e/push-reel.mjs",
     "api:types": "openapi-ts -i http://localhost:3001/docs-json -o src/lib/api"
   },
   "dependencies": {

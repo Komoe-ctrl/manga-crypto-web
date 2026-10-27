@@ -77,10 +77,30 @@ describe("subscribeThisDevice", () => {
     expect(add).toHaveBeenCalledTimes(1);
   });
 
-  it("une autre erreur du navigateur remonte telle quelle, sans appel à l'API", async () => {
+  it.each([
+    ["NotAllowedError", "texte technique en anglais", "browser_refused"],
+    // Constaté dans Edge en navigation privée : une AbortError dont le message parle de permission.
+    ["AbortError", "Registration failed - permission denied", "browser_refused"],
+    ["AbortError", "Registration failed - push service error", "service_unreachable"],
+    ["InvalidAccessError", "texte technique en anglais", "failed"],
+    ["QuelqueChoseDInconnu", "texte technique en anglais", "failed"],
+  ])("erreur du navigateur %s (« %s ») : traduite en cause « %s », sans appel à l'API", async (name, message, reason) => {
     env = installPushEnv({ permission: "granted" });
-    env.subscribe.mockRejectedValueOnce(new DOMException("service Push injoignable", "AbortError"));
-    await expect(subscribeThisDevice(KEY)).rejects.toMatchObject({ name: "AbortError" });
+    env.subscribe.mockRejectedValueOnce(new DOMException(message, name));
+    await expect(subscribeThisDevice(KEY)).rejects.toMatchObject({ name: "PushError", reason });
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it("une exception qui n'est pas une DOMException (code, réseau) devient aussi une cause lisible", async () => {
+    env = installPushEnv({ permission: "granted" });
+    env.subscribe.mockRejectedValueOnce(new TypeError("quelque chose"));
+    await expect(subscribeThisDevice(KEY)).rejects.toMatchObject({ name: "PushError", reason: "failed" });
+  });
+
+  it("l'enregistrement du service worker qui échoue (ex. page ni en https ni en localhost) : cause lisible", async () => {
+    env = installPushEnv({ permission: "granted" });
+    env.register.mockRejectedValueOnce(new DOMException("non sécurisé", "SecurityError"));
+    await expect(subscribeThisDevice(KEY)).rejects.toMatchObject({ name: "PushError", reason: "failed" });
     expect(add).not.toHaveBeenCalled();
   });
 

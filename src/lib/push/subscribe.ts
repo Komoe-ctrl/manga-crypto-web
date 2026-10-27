@@ -1,7 +1,7 @@
 import { notificationsControllerAddPushSubscription, notificationsControllerRemovePushSubscription } from "@/lib/api/sdk.gen";
 import { SW_URL, pushSupport, urlBase64ToUint8Array } from "./push-support";
 
-export type PushFailure = "denied" | "unsupported" | "incomplete_subscription";
+export type PushFailure = "denied" | "unsupported" | "incomplete_subscription" | "browser_refused" | "service_unreachable" | "failed";
 
 export class PushError extends Error {
   constructor(readonly reason: PushFailure) {
@@ -13,6 +13,22 @@ export class PushError extends Error {
 async function requestPermission(): Promise<void> {
   const permission = Notification.permission === "granted" ? "granted" : await Notification.requestPermission();
   if (permission !== "granted") throw new PushError("denied");
+}
+
+/**
+ * Traduit une exception du navigateur en cause compréhensible : le texte d'origine (« Registration failed - permission
+ * denied ») est en anglais et ne dit pas quoi faire. Constaté dans Edge : en **navigation privée**, où le Push n'existe
+ * pas, `subscribe()` échoue avec une `AbortError` dont le message est « permission denied » (et non une
+ * `NotAllowedError`) ; une vraie panne du service de notifications est aussi une `AbortError`, mais « push service
+ * error ». On distingue donc les deux par le message.
+ */
+function browserFailure(error: unknown): PushError {
+  if (error instanceof PushError) return error;
+  const name = error instanceof DOMException ? error.name : "";
+  const text = error instanceof DOMException ? error.message : "";
+  if (name === "NotAllowedError" || (name === "AbortError" && /permission/i.test(text))) return new PushError("browser_refused");
+  if (name === "AbortError") return new PushError("service_unreachable");
+  return new PushError("failed");
 }
 
 async function subscribeWithKey(registration: ServiceWorkerRegistration, publicKey: string): Promise<PushSubscription> {
@@ -38,9 +54,14 @@ export async function subscribeThisDevice(publicKey: string): Promise<void> {
   if (pushSupport() !== "supported") throw new PushError("unsupported");
   await requestPermission();
 
-  const registration = await navigator.serviceWorker.register(SW_URL, { scope: "/", updateViaCache: "none" });
-  await navigator.serviceWorker.ready;
-  const subscription = await subscribeWithKey(registration, publicKey);
+  let subscription: PushSubscription;
+  try {
+    const registration = await navigator.serviceWorker.register(SW_URL, { scope: "/", updateViaCache: "none" });
+    await navigator.serviceWorker.ready;
+    subscription = await subscribeWithKey(registration, publicKey);
+  } catch (error) {
+    throw browserFailure(error);
+  }
 
   const json = subscription.toJSON();
   if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {

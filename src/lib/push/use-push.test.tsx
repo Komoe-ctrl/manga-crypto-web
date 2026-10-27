@@ -127,6 +127,23 @@ describe("usePush : activer et désactiver", () => {
     await waitFor(() => expect(["off", "blocked"]).toContain(result.current.state));
   });
 
+  it.each([
+    ["NotAllowedError", "Registration failed - permission denied", "navigation privée"],
+    ["AbortError", "Registration failed - permission denied", "navigation privée"], // ce que renvoie Edge en navigation privée
+    ["AbortError", "Registration failed - push service error", "injoignable"],
+    ["InvalidAccessError", "The provided applicationServerKey is not valid", "autre navigateur"],
+  ])("erreur du navigateur %s : un message en français qui dit quoi faire, jamais le texte technique en anglais", async (name, technical, expected) => {
+    env = installPushEnv({ permission: "granted" });
+    env.subscribe.mockRejectedValueOnce(new DOMException(technical, name));
+    const { result } = await settled();
+
+    act(() => result.current.enable());
+
+    await waitFor(() => expect(screen.getByRole("alert").textContent).toContain(expected));
+    expect(screen.getByRole("alert").textContent).not.toContain(technical);
+    expect(add).not.toHaveBeenCalled();
+  });
+
   it("l'API refuse l'abonnement : son message s'affiche et l'appareil n'est pas abonné à moitié", async () => {
     env = installPushEnv();
     add.mockRejectedValueOnce({ statusCode: 422, message: "Adresse d'abonnement refusée : seul le service Push d'un navigateur connu est accepté" });

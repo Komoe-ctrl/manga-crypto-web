@@ -24,7 +24,7 @@ describe("AppNav", () => {
   it("propose les quatre pages, vers les bonnes adresses", () => {
     render(<AppNav />);
     const links = screen.getAllByRole("link");
-    expect(links.map((l) => [l.textContent?.trim(), l.getAttribute("href")])).toEqual([
+    expect(links.map((l) => [l.getAttribute("aria-label") ?? l.textContent?.trim(), l.getAttribute("href")])).toEqual([
       ["Tableau de bord", "/"],
       ["Alertes", "/alertes"],
       ["Rapports", "/rapports"],
@@ -41,7 +41,7 @@ describe("AppNav", () => {
     pathname = path;
     render(<AppNav />);
     const current = screen.getAllByRole("link").filter((l) => l.getAttribute("aria-current") === "page");
-    expect(current.map((l) => l.textContent?.trim())).toEqual([label]);
+    expect(current.map((l) => l.getAttribute("aria-label") ?? l.textContent?.trim())).toEqual([label]);
   });
 
   it("le tableau de bord n'est pas « courant » sur les autres pages (« / » est le début de toutes les adresses)", () => {
@@ -72,5 +72,31 @@ describe("AppNav", () => {
     unread = 3;
     render(<AppNav />);
     expect(screen.getByRole("link", { name: "Réglages" }).textContent?.trim()).toBe("Réglages");
+  });
+});
+
+describe("AppNav : une seule ligne, même sur téléphone", () => {
+  it("les liens ne passent pas à la ligne et la barre défile au besoin", () => {
+    render(<AppNav />);
+    const nav = screen.getByRole("navigation", { name: "Navigation principale" });
+    expect(nav.className).toContain("overflow-x-auto");
+    for (const link of screen.getAllByRole("link")) {
+      expect(link.className).toContain("whitespace-nowrap");
+      expect(link.className).toContain("shrink-0");
+    }
+  });
+});
+
+describe("AppNav : libellé court du tableau de bord sur téléphone", () => {
+  it("le nom accessible reste « Tableau de bord » ; « Accueil » n'est qu'un affichage court, caché aux lecteurs d'écran", () => {
+    render(<AppNav />);
+    const home = screen.getByRole("link", { name: "Tableau de bord" });
+    expect(home.getAttribute("aria-label")).toBe("Tableau de bord");
+    const shown = [...home.querySelectorAll("span")];
+    expect(shown.map((s) => s.textContent)).toEqual(["Accueil", "Tableau de bord"]);
+    expect(shown.every((s) => s.getAttribute("aria-hidden") === "true")).toBe(true);
+    expect(shown[0].className).toContain("sm:hidden"); // court : seulement sous 640 px
+    expect(shown[1].className).toContain("hidden sm:inline"); // long : à partir de 640 px
+    expect(screen.queryByRole("link", { name: "Accueil" })).toBeNull();
   });
 });
