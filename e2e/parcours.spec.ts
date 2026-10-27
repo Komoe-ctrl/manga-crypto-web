@@ -197,6 +197,73 @@ test("alertes : créer, mettre en pause, supprimer ; les champs suivent la condi
   await expect(page.getByText(/Aucune alerte/)).toBeVisible();
 });
 
+test("positions : déclarer un achat, corriger, vendre avec résultat réalisé, refus lisible, retirer", async () => {
+  await page.getByRole("link", { name: "Tableau de bord" }).click();
+  await expect(heading("Valeur totale du portefeuille")).toBeVisible();
+  const row = page.getByRole("table").getByRole("row", { name: /SOL/ });
+  const quantity = row.getByRole("cell").nth(1); // la colonne « Quantité »
+  const dialog = page.getByRole("dialog", { name: "Déclarer une opération" });
+  const saved = (text: RegExp) => expect(page.getByText(text)).toBeVisible();
+
+  // Achat d'un actif que le portefeuille ne contient pas.
+  await page.getByRole("button", { name: "Déclarer une opération" }).click();
+  await expect(dialog).toBeVisible();
+  const box = (await dialog.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width);
+  expect(box.y + box.height).toBeLessThanOrEqual(VIEWPORT.height);
+  await dialog.getByLabel("Actif", { exact: true }).fill("sol");
+  await dialog.getByLabel("Quantité", { exact: true }).fill("10");
+  await dialog.getByLabel(/Prix unitaire/).fill("150");
+  await shot("07-declaration-achat");
+  await dialog.getByRole("button", { name: "Enregistrer l'achat" }).click();
+  await expect(dialog).toBeHidden();
+  await saved(/Achat de 10 SOL enregistré/);
+  await expect(quantity).toHaveText("10"); // le portefeuille s'est relu : la ligne SOL existe
+
+  // Correction depuis le crayon de la ligne : la fenêtre part de la position actuelle.
+  await page.getByRole("button", { name: "Modifier la position SOL" }).click();
+  await expect(dialog.getByRole("button", { name: "Corriger" })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByLabel("Quantité", { exact: true })).toHaveValue("10");
+  await dialog.getByLabel("Quantité", { exact: true }).fill("8");
+  await dialog.getByRole("button", { name: "Enregistrer la correction" }).click();
+  await expect(dialog).toBeHidden();
+  await saved(/Position SOL mise à jour/);
+  await expect(quantity).toHaveText("8");
+
+  // Vente : le gain réalisé est annoncé (3 × (200 − 150) = 150 $US).
+  await page.getByRole("button", { name: "Déclarer une opération" }).click();
+  await dialog.getByRole("button", { name: "Vente" }).click();
+  await dialog.getByLabel("Actif", { exact: true }).fill("SOL");
+  await expect(dialog.getByText("Vous détenez 8 SOL.")).toBeVisible();
+  await dialog.getByLabel("Quantité", { exact: true }).fill("3");
+  await dialog.getByLabel(/Prix unitaire/).fill("200");
+  await dialog.getByRole("button", { name: "Enregistrer la vente" }).click();
+  await expect(dialog).toBeHidden();
+  await saved(/Vente de 3 SOL enregistrée\. Résultat réalisé : \+150/);
+  await expect(quantity).toHaveText("5");
+
+  // Vente supérieure à la quantité détenue : refus expliqué, la fenêtre reste ouverte.
+  await page.getByRole("button", { name: "Déclarer une opération" }).click();
+  await dialog.getByRole("button", { name: "Vente" }).click();
+  await dialog.getByLabel("Actif", { exact: true }).fill("SOL");
+  await dialog.getByLabel("Quantité", { exact: true }).fill("99");
+  await dialog.getByLabel(/Prix unitaire/).fill("200");
+  await dialog.getByRole("button", { name: "Enregistrer la vente" }).click();
+  await expect(dialog.getByText("Quantité insuffisante pour cette vente")).toBeVisible();
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+
+  // Retrait, avec confirmation.
+  await page.getByRole("button", { name: "Modifier la position SOL" }).click();
+  await dialog.getByRole("button", { name: "Retirer cette position" }).click();
+  await expect(dialog.getByText(/Retirer SOL de votre portefeuille/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Oui, retirer" }).click();
+  await expect(dialog).toBeHidden();
+  await saved(/Position SOL retirée/);
+  await expect(row).toHaveCount(0);
+  await shot("08-apres-positions");
+});
+
 test("réglages : le Mode Nuit et les garde-fous sont enregistrés et la session survit au rechargement de la page", async () => {
   await page.getByRole("link", { name: "Réglages" }).click();
   const night = page.getByRole("switch", { name: "Mode Nuit / Tranquillité" });
@@ -208,7 +275,7 @@ test("réglages : le Mode Nuit et les garde-fous sont enregistrés et la session
   await exposure.fill("12,5");
   await exposure.blur();
   await expect(page.getByText("Garde-fous enregistrés.")).toBeVisible();
-  await shot("07-reglages");
+  await shot("09-reglages");
 
   // Rechargement : le jeton en mémoire est perdu, la session est rétablie par le cookie, les réglages sont ceux du serveur.
   await page.reload();
@@ -223,7 +290,7 @@ test("réglages : le Mode Nuit et les garde-fous sont enregistrés et la session
 test("rapports : état vide expliqué", async () => {
   await page.getByRole("link", { name: "Rapports" }).click();
   await expect(page.getByText(/Aucun rapport pour l.instant/)).toBeVisible();
-  await shot("08-rapports");
+  await shot("10-rapports");
 });
 
 test("temps réel : un arrêt d'urgence décidé dans un onglet apparaît tout seul dans l'autre", async () => {
@@ -257,14 +324,14 @@ test("petit écran : pas de défilement horizontal de la page, la fenêtre d'ord
   expect(tops).toHaveLength(4);
   expect(new Set(tops).size, `Les liens de navigation sont sur plusieurs lignes : ${tops.join(", ")}`).toBe(1);
   expect(await nav.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-  await shot("09-mobile-tableau-de-bord");
+  await shot("11-mobile-tableau-de-bord");
 
   const dialog = await openOrderDialog();
   const box = (await dialog.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(390);
   expect(box.y + box.height).toBeLessThanOrEqual(844);
-  await shot("10-mobile-fenetre-ordre");
+  await shot("12-mobile-fenetre-ordre");
   await page.keyboard.press("Escape");
   await page.setViewportSize(VIEWPORT);
 });

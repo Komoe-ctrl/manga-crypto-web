@@ -196,12 +196,40 @@ En 390 px, « Réglages » passait à la ligne. Un premier correctif (une seule 
 - *Non couvert :* **un vrai téléphone** (Android, iOS/Safari), Chrome (FCM) et Firefox ; la notification est affichée par le service worker (vérifié), mais le **clic** sur la notification et la réception écran verrouillé ne sont pas vérifiés.
 - Le test réel utilise le compte de démonstration (`demo@veille.local`) et laisse l'appareil désabonné.
 
+## Étape 25 : déclarer ses positions
+
+### F47. Pourquoi cette étape passe avant le reste
+Jusqu'ici, le portefeuille ne pouvait être rempli que **par des appels directs à l'API** : les positions des captures et des tests, je les avais créées moi-même. Un vrai client n'aurait rien pu faire de l'application. Le portefeuille est **déclaratif** (l'application ne lit pas les soldes de la plateforme) : cette fenêtre est donc le seul moyen d'y mettre ce que l'on possède. Aucune dépendance ajoutée.
+
+### F48. Une fenêtre, trois modes, chacun expliqué
+**Achat** (ajoute et recalcule le prix d'achat moyen), **Vente** (retire ; le prix moyen ne change pas ; le résultat réalisé est annoncé), **Corriger** (remplace quantité et prix moyen : import initial ou rectification). Chaque mode affiche sa phrase d'explication, parce que la confusion entre « acheter » et « corriger » fausserait le prix moyen sans que l'écran ne le dise. En vente, l'écran dit combien on détient (« Vous détenez 0,05 BTC ») ou que l'actif n'est pas détenu. Changer de mode repart des valeurs utiles : le prix du marché pour un achat ou une vente, la position actuelle pour une correction. Un actif absent peut être « corrigé » : c'est l'import initial. Les positions en USDT (trésorerie) se déclarent comme les autres, contrairement aux ordres où USDT est la monnaie de règlement.
+
+### F49. Accès : sans ajouter de colonne, avec un vrai point d'entrée
+Bouton « Déclarer une opération » dans « Mes actifs », et un crayon « Modifier la position X » sur chaque ligne (ouvre la correction de cette position, déjà remplie des valeurs exactes de l'API). Le crayon est dans la cellule de l'actif : le tableau garde ses 8 colonnes. **Portefeuille vide :** l'ancien texte promettait « les actifs que vous déclarerez » sans permettre d'en déclarer ; il est remplacé par une explication (« se remplit à la main ») et un bouton « Ajouter mon premier actif ».
+
+### F50. Les mêmes règles que l'API, vérifiées avant l'envoi, et des refus lisibles
+`lib/positions.ts` reprend la règle de l'API (strictement positif, **20 chiffres entiers, 18 décimales au plus**) ; la virgule devient un point, rien d'autre : les montants restent des chaînes, jamais des nombres à virgule. Pas d'optimisme : ces écritures changent le prix d'achat moyen, on affiche ce que l'API a retenu. Une vente supérieure à la quantité détenue (422, « Quantité insuffisante pour cette vente »), une modification simultanée (409) et un réseau coupé s'affichent dans la fenêtre, **sans perdre la saisie**. Un retrait d'une position déjà disparue répond 404 « Not Found » en anglais côté API : le front le traduit (« Cette position n'existe plus »). Retirer demande confirmation et précise que l'historique des ordres n'est pas effacé.
+
+### F51. Vérification
+- **Contre la vraie API** (base temporaire) : achat, second achat qui recalcule le prix moyen ((10×150 + 10×170)/20 = 160), vente avec résultat réalisé (3 × (200 − 150) = 150, prix moyen inchangé), correction avec 18 décimales exactes, vente excessive refusée en français, quantités refusées par le front **refusées aussi par l'API** (même règle), retrait puis retrait d'une position absente (404).
+- **Dans le vrai navigateur** : achat d'un nouvel actif, correction depuis le crayon, vente avec « Résultat réalisé : +150 $US » annoncé, refus d'une vente de 99, retrait confirmé ; fenêtre entière dans l'écran ; la colonne Quantité vérifiée par texte exact.
+- Tests : 601 passent en mémoire ; 15 « réels » ignorés sans API ; parcours navigateur : 14 sur 14.
+*Non couvert :* **une quantité très grande ou très précise saisie à la main sur téléphone** (clavier numérique, séparateur décimal selon la langue du téléphone : le front accepte la virgule et le point) ; l'import de plusieurs positions d'un coup (CSV).
+
+### F52. Limites à connaître avant de confier l'outil à un client
+- **Pas d'historique des opérations déclarées.** L'API renvoie le résultat réalisé d'une vente **mais ne le conserve pas** (D33 de l'API : « audité, pas persisté » ; les positions déclarées sont D32). L'écran ne peut donc pas lister ses achats et ventes déclarés, ni cumuler un gain réalisé. Seuls les **ordres passés par l'application** ont un historique.
+- **Le portefeuille est déclaratif** : il ne bouge pas tout seul si le client achète ailleurs, et ne détecte aucune erreur de saisie (une quantité fausse donne un portefeuille faux).
+- Pas d'import en bloc.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
+| **Feuille de route vers un client réel** | Étape 26 : application installable sur téléphone (manifeste, icônes ; sur iPhone le Push exige l'installation) et scripts pour créer le compte du client et fermer l'inscription. Étape 27 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 28 : mentions (« pas un conseil financier ») et recette avec le client |
+| Historique des opérations déclarées | L'API ne conserve pas les achats et ventes déclarés (F52) : il faut une table côté `crypto-api`, puis un écran |
+| Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
 | Tests de navigateur en intégration continue | Faits à l'étape 23 mais lancés à la main (Docker, API construite, mémoire libre) ; à brancher quand une intégration continue existera |

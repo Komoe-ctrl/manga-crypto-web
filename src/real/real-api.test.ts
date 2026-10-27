@@ -275,6 +275,53 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     }
   });
 
+  it("positions : achat, vente avec résultat réalisé, correction, refus lisibles, retrait — avec les règles du front", async () => {
+    const { normalizeDecimal, validateDecimal } = await import("@/lib/positions");
+    const { apiErrorMessage, hasStatus } = await import("@/lib/api-error");
+    const q = (raw: string) => {
+      expect(validateDecimal(raw, "quantité")).toBeNull(); // ce que le front accepte, l'API l'accepte
+      return normalizeDecimal(raw);
+    };
+
+    try {
+      const buy = await sdk.portfolioControllerRecord({ body: { symbol: "SOL", side: "BUY", quantity: q("10"), price: q("150") }, throwOnError: true });
+      expect(buy.data.holding).toEqual({ symbol: "SOL", quantity: "10", avgBuyPrice: "150" });
+      expect(buy.data.realizedPnl).toBeNull();
+
+      // Un second achat recalcule le prix moyen : (10 × 150 + 10 × 170) / 20 = 160, et garde 18 décimales exactes.
+      const buy2 = await sdk.portfolioControllerRecord({ body: { symbol: "SOL", side: "BUY", quantity: q("10"), price: q("170") }, throwOnError: true });
+      expect(buy2.data.holding).toEqual({ symbol: "SOL", quantity: "20", avgBuyPrice: "160" });
+      const precise = await sdk.portfolioControllerSet({ path: { symbol: "SOL" }, body: { quantity: q("0,123456789012345678"), avgBuyPrice: q("150,5") }, throwOnError: true });
+      expect(precise.data.quantity).toBe("0.123456789012345678");
+
+      await sdk.portfolioControllerSet({ path: { symbol: "SOL" }, body: { quantity: "10", avgBuyPrice: "150" }, throwOnError: true });
+      const sell = await sdk.portfolioControllerRecord({ body: { symbol: "SOL", side: "SELL", quantity: q("3"), price: q("200") }, throwOnError: true });
+      expect(sell.data.holding).toEqual({ symbol: "SOL", quantity: "7", avgBuyPrice: "150" }); // le prix moyen ne change pas à la vente
+      expect(sell.data.realizedPnl).toBe("150"); // 3 × (200 − 150)
+
+      // Vente supérieure à la quantité détenue : 422 avec un message en français.
+      const tooMuch = await sdk.portfolioControllerRecord({ body: { symbol: "SOL", side: "SELL", quantity: q("99"), price: q("200") } });
+      expect(tooMuch.response?.status).toBe(422);
+      expect(apiErrorMessage(tooMuch.error, "repli")).toBe("Quantité insuffisante pour cette vente");
+
+      // Ce que le front refuse avant l'envoi, l'API le refuse aussi (même règle).
+      for (const bad of ["0", "abc", "0.0000000000000000001", "123456789012345678901"]) {
+        expect(validateDecimal(bad, "quantité")).not.toBeNull();
+        const refused = await sdk.portfolioControllerRecord({ body: { symbol: "SOL", side: "BUY", quantity: bad, price: "1" } });
+        expect(refused.response?.status, "quantité " + bad).toBe(400);
+      }
+    } finally {
+      await sdk.portfolioControllerRemove({ path: { symbol: "SOL" } });
+    }
+
+    // Retirer une position absente : 404 (le front le traduit en « Cette position n'existe plus »).
+    const gone = await sdk.portfolioControllerRemove({ path: { symbol: "SOL" } });
+    expect(gone.response?.status).toBe(404);
+    expect(hasStatus(gone.error, 404)).toBe(true);
+    const { data: after } = await sdk.portfolioControllerGet({ throwOnError: true });
+    expect(after.assets.map((a) => a.symbol)).not.toContain("SOL");
+  });
+
   it("temps réel : un ordre PAPER passé par l'API arrive en direct, du premier au dernier état", async () => {
     await sdk.portfolioControllerSet({
       path: { symbol: "USDT" },

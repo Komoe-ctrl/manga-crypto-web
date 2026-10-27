@@ -1,5 +1,6 @@
 "use client";
 
+import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { Glass } from "@/components/ui/glass";
 import { Segmented } from "@/components/ui/segmented";
@@ -34,10 +35,14 @@ interface AssetsTableProps {
   trends?: TrendsDto;
   /** Les tendances n'ont pas pu être lues : on le dit, sans empêcher d'afficher le portefeuille. */
   trendsFailed?: boolean;
+  /** Ouvre la déclaration d'une opération. Sans ce rappel, le tableau reste en lecture seule (tests, aperçus). */
+  onAdd?: () => void;
+  /** Ouvre la correction d'une position existante. */
+  onEdit?: (symbol: string) => void;
 }
 
 /** Les positions du portefeuille, triées par valeur. */
-export function AssetsTable({ assets, currency, trends, trendsFailed = false }: AssetsTableProps) {
+export function AssetsTable({ assets, currency, trends, trendsFailed = false, onAdd, onEdit }: AssetsTableProps) {
   const { mask } = usePrivacy();
   const [filter, setFilter] = useState<AssetFilter>("all");
   const visible = filterAssets(sortByValue(assets), filter);
@@ -53,13 +58,40 @@ export function AssetsTable({ assets, currency, trends, trendsFailed = false }: 
             {visible.length} actif{visible.length > 1 ? "s" : ""} · triés par valeur
           </span>
         </div>
-        <Segmented label="Filtrer les actifs" value={filter} onChange={setFilter} options={FILTERS} />
+        <div className="flex flex-wrap items-center gap-2">
+          {onAdd && assets.length > 0 && (
+            <button
+              type="button"
+              onClick={onAdd}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-line px-4 text-sm font-bold text-ink hover:bg-surface focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" /> Déclarer une opération
+            </button>
+          )}
+          <Segmented label="Filtrer les actifs" value={filter} onChange={setFilter} options={FILTERS} />
+        </div>
       </div>
 
       {assets.length === 0 ? (
-        <p className="py-6 text-center text-muted">
-          Aucune position pour l’instant. Les actifs que vous déclarerez apparaîtront ici.
-        </p>
+        <div className="flex flex-col items-center gap-4 py-8 text-center">
+          <p className="max-w-md text-muted">
+            Aucune position pour l’instant. Les actifs que vous déclarerez apparaîtront ici.
+          </p>
+          {onAdd && (
+            <>
+              <p className="max-w-md text-[13px] text-muted">
+                Votre portefeuille se remplit à la main : déclarez ce que vous possédez déjà (quantité et prix d’achat moyen), puis chaque achat ou vente.
+              </p>
+              <button
+                type="button"
+                onClick={onAdd}
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-accent px-5 text-sm font-bold text-accent-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <Plus className="h-4 w-4" aria-hidden="true" /> Ajouter mon premier actif
+              </button>
+            </>
+          )}
+        </div>
       ) : visible.length === 0 ? (
         <p className="py-6 text-center text-muted">Aucun actif ne correspond à ce filtre.</p>
       ) : (
@@ -109,6 +141,16 @@ export function AssetsTable({ assets, currency, trends, trendsFailed = false }: 
                         {assetBadge(asset.symbol)}
                       </span>
                       <span className="font-bold">{asset.symbol}</span>
+                      {onEdit && (
+                        <button
+                          type="button"
+                          onClick={() => onEdit(asset.symbol)}
+                          aria-label={`Modifier la position ${asset.symbol}`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg text-muted hover:bg-white/[0.07] hover:text-ink focus-visible:outline-2 focus-visible:outline-accent"
+                        >
+                          <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums text-ink-soft">{mask(formatQuantity(asset.quantity))}</td>
