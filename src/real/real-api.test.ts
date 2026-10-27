@@ -322,6 +322,37 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     expect(after.assets.map((a) => a.symbol)).not.toContain("SOL");
   });
 
+  it("historique : opérations, gain réalisé exact et pagination, lus avec les fonctions du front", async () => {
+    const { describeOperation } = await import("@/lib/operations");
+    const symbol = "DOGE"; // un actif à part : les autres tests du fichier écrivent aussi dans le journal
+
+    try {
+      await sdk.portfolioControllerRecord({ body: { symbol, side: "BUY", quantity: "100", price: "0.1" }, throwOnError: true });
+      await sdk.portfolioControllerRecord({ body: { symbol, side: "SELL", quantity: "30", price: "0.12" }, throwOnError: true }); // 30 × 0,02 = +0,6
+      await sdk.portfolioControllerRecord({ body: { symbol, side: "SELL", quantity: "10", price: "0.08" }, throwOnError: true }); // 10 × −0,02 = −0,2
+
+      const first = await sdk.portfolioControllerOperations({ query: { symbol, limit: 2 }, throwOnError: true });
+      expect(first.data.items.map((i) => [i.kind, i.quantity, i.realizedPnl])).toEqual([
+        ["SELL", "10", "-0.2"], // la plus récente d'abord
+        ["SELL", "30", "0.6"],
+      ]);
+      expect(first.data.realizedTotal).toBe("0.4"); // exact : 0,6 − 0,2, sans erreur de flottant
+
+      // Page suivante : à partir de la date de la dernière opération lue ; le cumul ne dépend pas de la page.
+      const second = await sdk.portfolioControllerOperations({ query: { symbol, limit: 2, before: first.data.items[1].createdAt }, throwOnError: true });
+      expect(second.data.items.map((i) => i.kind)).toEqual(["BUY"]);
+      expect(second.data.realizedTotal).toBe("0.4");
+
+      expect(describeOperation(first.data.items[0]).replace(/[\u202f\u00a0]/g, " ")).toMatch(/^Vente de 10 DOGE à 0,0800/);
+      expect(first.data.items.every((i) => i.source === "DECLARED" && i.orderId === null)).toBe(true);
+    } finally {
+      await sdk.portfolioControllerRemove({ path: { symbol } });
+    }
+
+    const { data: afterRemoval } = await sdk.portfolioControllerOperations({ query: { symbol, limit: 1 }, throwOnError: true });
+    expect(afterRemoval.items[0]).toMatchObject({ kind: "REMOVE", symbol });
+  });
+
   it("temps réel : un ordre PAPER passé par l'API arrive en direct, du premier au dernier état", async () => {
     await sdk.portfolioControllerSet({
       path: { symbol: "USDT" },
@@ -352,6 +383,11 @@ describe.skipIf(!REAL)("front contre la vraie API", () => {
     // L'événement part après la mise à jour du portefeuille : le relire donne déjà le résultat.
     const { data: portfolio } = await sdk.portfolioControllerGet({ throwOnError: true });
     expect(portfolio.assets.map((a) => a.symbol).sort()).toEqual(["BTC", "USDT"]);
+
+    // L'ordre exécuté figure à l'historique avec son identifiant ; sa jambe en USDT est masquée.
+    const { data: history } = await sdk.portfolioControllerOperations({ query: { limit: 20 }, throwOnError: true });
+    expect(history.items.find((i) => i.orderId === order.data.id)).toMatchObject({ symbol: "BTC", kind: "BUY", source: "ORDER" });
+    expect(history.items.filter((i) => i.source === "ORDER" && i.symbol === "USDT")).toEqual([]);
 
     // Kill switch : l'état du robot arrive en direct.
     await sdk.riskControllerActivateKillSwitch({ throwOnError: true });

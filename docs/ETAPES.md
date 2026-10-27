@@ -326,3 +326,48 @@ Variables : `PUSH_WEB` (défaut `http://localhost:3100`), `PUSH_EMAIL`, `PUSH_PA
 `npm run typecheck`, `npm run lint`, `npm test` (601 tests), `npm run test:real` (15), `npm run test:e2e` (14 parcours, dont les positions) : OK. Détails et limites dans F47 à F52.
 
 **Pas encore fait** (voir la feuille de route dans « À prévoir ») : installation sur téléphone, mise en service hébergée, sauvegardes, historique des opérations (demande un changement côté API), import en bloc.
+
+
+## Étape 27 : historique des opérations et fiche d'un actif
+
+### Ce que l'on voit
+
+- **Tableau de bord** : la carte **« Dernières opérations »** (les 8 plus récentes, le résultat réalisé cumulé, le lien « Tout l'historique »). Le nom de chaque actif est cliquable.
+- **Fiche d'un actif** (toucher son nom) : prix, grande courbe, variations, position, opérations de cet actif et son résultat réalisé, alertes, boutons **Acheter, Vendre, Corriger**.
+- **Page `/historique`** : toutes les opérations, filtre par actif, « Voir plus », résultat réalisé cumulé (de tout, ou de l'actif choisi).
+
+### Mode d'emploi pour le client
+
+1. **Voir ce qu'on a fait** : sur le tableau de bord, « Dernières opérations » ; « Tout l'historique » pour tout relire, et le menu « Actif » pour ne voir qu'un seul actif.
+2. **Connaître son gain réalisé** : le chiffre « Résultat réalisé cumulé » compte les **ventes** (déclarées ou faites par l'application), pas la valeur actuelle des positions (c'est le « résultat latent » de chaque actif).
+3. **Voir un actif en détail** : toucher son nom dans « Mes actifs ». De là, **Acheter**, **Vendre** ou **Corriger** ouvrent la déclaration déjà prête.
+
+### Organisation du code
+
+| Fichier | Rôle |
+|---|---|
+| `src/lib/queries/operations.ts` | `useOperations` : pages successives, cumul pris sur la première page |
+| `src/lib/operations.ts` | Une opération en une phrase, résultat réalisé, mention « Ordre » |
+| `src/components/portfolio/OperationsList.tsx`, `OperationsCard.tsx` | Liste partagée, cumul, carte du tableau de bord |
+| `src/components/portfolio/AssetDialog.tsx` | La fiche d'un actif |
+| `src/components/history/HistoryPage.tsx`, `src/app/(app)/historique/` | La page de l'historique |
+| `src/test-operations-server.ts` | Faux serveur d'historique pour les tests (filtre, pagination, cumul) |
+
+Prérequis : une API qui expose `GET /api/portfolio/operations` (étape 26 de `crypto-api`, fusionnée) et **sa migration appliquée avec `npx prisma migrate deploy`** (jamais `migrate dev`, voir D128 de l'API).
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| « Impossible de charger l'historique des opérations » | API trop ancienne (404 sur `/portfolio/operations`) ou migration non appliquée |
+| L'historique est vide alors que le portefeuille ne l'est pas | Normal : il commence à la mise en service de l'étape 26 |
+| Une opération manque | Journal en panne au moment de l'opération (« Journal du portefeuille en échec » dans les journaux de l'API) : la position, elle, est juste |
+| Le cumul ne change pas en paginant | Normal : il porte sur tout le journal |
+| « Chargement de votre portefeuille… » long | L'API attend les prix de Binance (jusqu'à 10 s si la plateforme est lente) |
+| La fiche montre « Impossible de charger les opérations » | Lecture séparée en échec ; le reste de la fiche fonctionne |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm run build`, `npm test` (656 tests ; `--maxWorkers=2` si la mémoire manque), `npm run test:real` (16), `npm run test:e2e` (15 parcours) : OK. Détails, défauts et limites dans F53 à F59.
+
+**Pas encore fait** : étapes 28 (application installable sur téléphone, création du compte du client), 29 (mise en service hébergée, sauvegardes) et 30 (mentions, recette) de la feuille de route, import en bloc des positions.

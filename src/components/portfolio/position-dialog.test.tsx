@@ -68,6 +68,46 @@ describe("PositionDialog : ouverture", () => {
   });
 });
 
+describe("PositionDialog : mode de départ imposé (depuis la fiche d'un actif)", () => {
+  const open = (symbol: string, mode: "BUY" | "SELL" | "CORRECT") =>
+    renderWithProviders(<PositionDialog holdings={HOLDINGS} currency="USD" symbol={symbol} mode={mode} onClose={onClose} />);
+
+  it("Vente d'un actif détenu : le mode est Vente (pas Corriger), le prix du marché est proposé, la quantité vide", () => {
+    open("BTC", "SELL");
+    expect(screen.getByRole("button", { name: "Vente" }).getAttribute("aria-pressed")).toBe("true");
+    expect(symbolField().value).toBe("BTC");
+    expect(priceField().value).toBe("80000");
+    expect(quantityField().value).toBe("");
+    expect(screen.getByText("Vous détenez 0,05 BTC.")).toBeTruthy();
+  });
+
+  it("Achat d'un actif détenu : le mode est Achat, le prix du marché est proposé", () => {
+    open("ETH", "BUY");
+    expect(screen.getByRole("button", { name: "Achat" }).getAttribute("aria-pressed")).toBe("true");
+    expect(priceField().value).toBe("2300");
+  });
+
+  it("Corriger : la position actuelle", () => {
+    open("BTC", "CORRECT");
+    expect(screen.getByRole("button", { name: "Corriger" }).getAttribute("aria-pressed")).toBe("true");
+    expect(quantityField().value).toBe("0.05");
+    expect(priceField().value).toBe("60000.5");
+  });
+
+  it("sans mode imposé, le comportement d'avant : correction d'un actif détenu, achat sinon", () => {
+    show("BTC");
+    expect(screen.getByRole("button", { name: "Corriger" }).getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it("la vente demandée depuis la fiche part avec le bon corps", async () => {
+    open("BTC", "SELL");
+    fireEvent.change(quantityField(), { target: { value: "0,01" } });
+    submit(/Enregistrer la vente/);
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(bodyOf(record).body).toEqual({ symbol: "BTC", side: "SELL", quantity: "0.01", price: "80000" });
+  });
+});
+
 describe("PositionDialog : validation avant envoi", () => {
   it("champs vides : trois messages, aucun appel", () => {
     show();

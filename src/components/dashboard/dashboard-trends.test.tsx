@@ -14,6 +14,7 @@ vi.mock("@/lib/queries/trends", async (importOriginal) => ({
 }));
 vi.mock("@/components/bot/BotStatusCard", () => ({ BotStatusCard: () => null }));
 vi.mock("@/components/orders/OrdersCard", () => ({ OrdersCard: () => null }));
+vi.mock("@/components/portfolio/OperationsCard", () => ({ OperationsCard: () => null }));
 
 import { Dashboard } from "./Dashboard";
 

@@ -1,12 +1,15 @@
 "use client";
 
 import { BotStatusCard } from "@/components/bot/BotStatusCard";
+import { AssetDialog } from "@/components/portfolio/AssetDialog";
+import { OperationsCard } from "@/components/portfolio/OperationsCard";
 import { PositionDialog } from "@/components/portfolio/PositionDialog";
 import { OrdersCard } from "@/components/orders/OrdersCard";
 import { useState } from "react";
 import { Glass } from "@/components/ui/glass";
 import { usePortfolio } from "@/lib/queries/portfolio";
-import { marketState, useTrends } from "@/lib/queries/trends";
+import type { PositionMode } from "@/lib/positions";
+import { marketState, trendOf, useTrends } from "@/lib/queries/trends";
 import { AssetsTable } from "./AssetsTable";
 import { WalletHeader } from "./WalletHeader";
 
@@ -16,7 +19,9 @@ export function Dashboard() {
   // Les tendances n'empêchent jamais d'afficher le portefeuille : en cas d'échec, seules les courbes manquent.
   const trends = useTrends();
   // `symbol` absent : nouvelle opération ; présent : correction de cette position.
-  const [dialog, setDialog] = useState<{ symbol?: string } | null>(null);
+  const [dialog, setDialog] = useState<{ symbol?: string; mode?: PositionMode } | null>(null);
+  // Fiche d'un actif ouverte (son symbole), sinon `null`.
+  const [detail, setDetail] = useState<string | null>(null);
 
   if (isPending) {
     return (
@@ -42,6 +47,9 @@ export function Dashboard() {
     );
   }
 
+  // Une position retirée ou corrigée pendant que sa fiche est ouverte : si l'actif n'existe plus, la fiche disparaît.
+  const detailAsset = detail ? portfolio.assets.find((a) => a.symbol === detail) : undefined;
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <BotStatusCard />
@@ -56,12 +64,30 @@ export function Dashboard() {
         trendsFailed={trends.isError && !trends.data}
         onAdd={() => setDialog({})}
         onEdit={(symbol) => setDialog({ symbol })}
+        onOpen={setDetail}
       />
       <OrdersCard />
+      <OperationsCard currency={portfolio.currency} />
+
+      {detailAsset && (
+        <AssetDialog
+          key={detailAsset.symbol}
+          asset={detailAsset}
+          trend={trendOf(trends.data, detailAsset.symbol)}
+          currency={portfolio.currency}
+          onClose={() => setDetail(null)}
+          // La fiche cède la place à la fenêtre de déclaration : une seule fenêtre à la fois.
+          onAction={(mode) => {
+            setDetail(null);
+            setDialog({ symbol: detailAsset.symbol, mode });
+          }}
+        />
+      )}
 
       {dialog && (
         <PositionDialog
-          key={dialog.symbol ?? "nouvelle"}
+          key={`${dialog.symbol ?? "nouvelle"}-${dialog.mode ?? "auto"}`}
+          mode={dialog.mode}
           holdings={portfolio.assets}
           currency={portfolio.currency}
           symbol={dialog.symbol}

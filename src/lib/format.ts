@@ -46,10 +46,14 @@ export function formatWeight(value: Amount): string {
   return n === null ? "—" : `${Math.round(n)} %`;
 }
 
+/**
+ * Quantité d'un actif : 4 décimales au plus à partir d'une unité, **8 en dessous**. Avec 4 partout, 0,00001234 BTC (environ
+ * 1 $) s'affichait « 0 » : une position non nulle ne doit jamais sembler vide.
+ */
 export function formatQuantity(value: Amount): string {
   const n = toNumber(value);
   if (n === null) return "—";
-  return n.toLocaleString(LOCALE, { maximumFractionDigits: 4 });
+  return n.toLocaleString(LOCALE, { maximumFractionDigits: Math.abs(n) < 1 ? 8 : 4 });
 }
 
 /** Prix d'un actif : quatre décimales sous 10 $ (les petits prix perdraient tout sens avec deux). */
