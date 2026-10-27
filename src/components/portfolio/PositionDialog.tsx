@@ -31,6 +31,8 @@ interface PositionDialogProps {
   currency: string;
   /** Ouverture depuis une ligne : l'actif est connu, on propose directement de corriger sa position. */
   symbol?: string;
+  /** Mode de départ imposé (depuis la fiche d'un actif : Acheter, Vendre, Corriger) ; sinon déduit de l'actif. */
+  mode?: PositionMode;
   onClose: () => void;
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
@@ -47,14 +49,14 @@ function defaults(mode: PositionMode, held: AssetValuationDto | undefined): { qu
  * Déclarer un achat ou une vente, corriger une position ou la retirer. Le portefeuille est **déclaratif** (l'application
  * ne lit pas encore les soldes de la plateforme) : cette fenêtre est le seul moyen d'y mettre ce que l'on possède.
  */
-export function PositionDialog({ holdings, currency, symbol: initialSymbol, onClose, returnFocusRef }: PositionDialogProps) {
+export function PositionDialog({ holdings, currency, symbol: initialSymbol, mode: requestedMode, onClose, returnFocusRef }: PositionDialogProps) {
   const { notify } = useToast();
   const record = useRecordTransaction();
   const set = useSetPosition();
   const remove = useRemovePosition();
 
   const initialHeld = initialSymbol ? holdings.find((h) => h.symbol === initialSymbol) : undefined;
-  const initialMode: PositionMode = initialHeld ? "CORRECT" : "BUY";
+  const initialMode: PositionMode = requestedMode ?? (initialHeld ? "CORRECT" : "BUY");
   const [mode, setMode] = useState<PositionMode>(initialMode);
   const [symbol, setSymbol] = useState(initialSymbol ?? "");
   const [quantity, setQuantity] = useState(defaults(initialMode, initialHeld).quantity);

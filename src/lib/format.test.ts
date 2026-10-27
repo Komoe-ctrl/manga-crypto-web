@@ -79,7 +79,10 @@ describe("formatQuantity", () => {
   it("jusqu'à quatre décimales, sans zéros inutiles", () => {
     expect(formatQuantity("0.84200000")).toBe("0,842");
     expect(plain(formatQuantity("4200"))).toBe("4 200");
-    expect(formatQuantity("0.123456")).toBe("0,1235");
+    expect(formatQuantity("1.123456")).toBe("1,1235"); // 4 décimales au plus à partir d'une unité
+    expect(formatQuantity("0.123456")).toBe("0,123456"); // 8 en dessous
+    expect(formatQuantity("0.00001234")).toBe("0,00001234"); // une petite position ne s'affiche jamais « 0 »
+    expect(formatQuantity("0.000000001")).toBe("0"); // sous 8 décimales : trop petit pour être montré
     expect(formatQuantity(null)).toBe("—");
   });
 });

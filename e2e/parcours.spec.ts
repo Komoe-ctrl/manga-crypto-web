@@ -9,6 +9,10 @@ import { USER } from "./env";
 test.describe.configure({ mode: "serial" });
 
 const VIEWPORT = { width: 1366, height: 768 };
+// Charger le portefeuille ou valider un ordre oblige l'API à lire les prix chez Binance (jusqu'à 10 s par appel si la
+// plateforme est lente, davantage sur une machine chargée) : ces attentes sont plus longues que celles qui ne dépendent
+// que de l'application.
+const SLOW_EXTERNAL = { timeout: 30_000 };
 const QUANTITY_LABEL = "Quantité d’actif";
 let context: BrowserContext;
 let page: Page;
@@ -48,7 +52,7 @@ test("connexion : un mauvais mot de passe est refusé, puis la bonne connexion o
 
   await page.getByLabel("Mot de passe").fill(USER.password);
   await page.getByRole("button", { name: "Se connecter" }).click();
-  await expect(heading("Valeur totale du portefeuille")).toBeVisible();
+  await expect(heading("Valeur totale du portefeuille")).toBeVisible(SLOW_EXTERNAL);
   await expect(page.getByText("En direct")).toBeVisible(); // le WebSocket est ouvert
 });
 
@@ -129,10 +133,6 @@ test("ordre : la fenêtre couvre l'écran, centrée et entière, et son clavier 
   await expect(page.getByRole("button", { name: "Passer un ordre" })).toBeFocused();
 });
 
-// Valider un ordre oblige l'API à lire les prix chez Binance (jusqu'à 10 s par appel si la plateforme est lente) : ces deux
-// attentes sont plus longues que les autres, qui ne dépendent que de l'application.
-const SLOW_EXTERNAL = { timeout: 30_000 };
-
 test("ordre : refus d'un garde-fou expliqué, puis ordre accepté qui met le portefeuille à jour", async () => {
   let dialog = await openOrderDialog();
   await fillOrder(dialog, "btc", "1000"); // bien au-delà des fonds
@@ -203,7 +203,8 @@ test("positions : déclarer un achat, corriger, vendre avec résultat réalisé,
   const row = page.getByRole("table").getByRole("row", { name: /SOL/ });
   const quantity = row.getByRole("cell").nth(1); // la colonne « Quantité »
   const dialog = page.getByRole("dialog", { name: "Déclarer une opération" });
-  const saved = (text: RegExp) => expect(page.getByText(text)).toBeVisible();
+  // La bulle de confirmation (role=status) : l'historique affiché plus bas répète parfois les mêmes mots.
+  const saved = (text: RegExp) => expect(page.getByRole("status").filter({ hasText: text })).toBeVisible();
 
   // Achat d'un actif que le portefeuille ne contient pas.
   await page.getByRole("button", { name: "Déclarer une opération" }).click();
@@ -262,6 +263,54 @@ test("positions : déclarer un achat, corriger, vendre avec résultat réalisé,
   await saved(/Position SOL retirée/);
   await expect(row).toHaveCount(0);
   await shot("08-apres-positions");
+});
+
+test("historique et fiche d'un actif : les opérations déclarées, le gain réalisé, la fiche cliquable", async () => {
+  await page.getByRole("link", { name: "Tableau de bord" }).click();
+  await expect(heading("Valeur totale du portefeuille")).toBeVisible();
+
+  // La carte du tableau de bord : les dernières opérations, celles du parcours précédent.
+  const recent = page.getByRole("list", { name: "Dernières opérations" });
+  await expect(recent).toContainText("Position SOL retirée");
+  await expect(recent).toContainText("Vente de 3 SOL");
+  await expect(recent.getByLabel(/Résultat réalisé : \+150/)).toBeVisible();
+  await expect(page.getByTestId("realized-total").first()).toBeVisible();
+
+  // Tout l'historique, filtré sur un actif : quatre opérations, et son propre cumul exact (3 × (200 − 150) = +150).
+  await page.getByRole("link", { name: /Tout l.historique/ }).click();
+  await expect(page).toHaveURL(/\/historique/);
+  await expect(heading("Historique des opérations")).toBeVisible();
+  // Next garde les pages déjà visitées dans le DOM, cachées (cacheComponents) : on cadre sur celle qui est affichée.
+  const history = page.getByRole("region", { name: "Historique des opérations" });
+  await history.getByLabel("Actif", { exact: true }).selectOption("SOL");
+  await expect(history.getByRole("list", { name: "Opérations" }).getByRole("listitem")).toHaveCount(4);
+  await expect(history.getByText("Résultat réalisé sur SOL")).toBeVisible();
+  await expect(history.getByTestId("realized-total")).toContainText("+150,00");
+  await shot("08-historique");
+
+  // La fiche d'un actif : cliquable depuis le tableau.
+  await page.getByRole("link", { name: "Tableau de bord" }).click();
+  await page.getByRole("button", { name: "Voir le détail de ETH" }).click();
+  const detail = page.getByRole("dialog", { name: "ETH" });
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole("img", { name: /ETH sur 7 jours/ })).toBeVisible({ timeout: 20_000 });
+  await expect(detail).toContainText("Ma position");
+  await expect(detail).toContainText("1,2"); // la quantité déclarée
+  const box = (await detail.boundingBox())!;
+  expect(box.x).toBeGreaterThanOrEqual(0);
+  expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(VIEWPORT.height);
+  await shot("08-fiche-actif");
+
+  // De la fiche à l'achat : une seule fenêtre à la fois, déjà sur le bon actif et le bon mode.
+  await detail.getByRole("button", { name: "Acheter" }).click();
+  await expect(detail).toBeHidden();
+  const dialog = page.getByRole("dialog", { name: "Déclarer une opération" });
+  await expect(dialog.getByRole("button", { name: "Achat", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(dialog.getByLabel("Actif", { exact: true })).toHaveValue("ETH");
+  await dialog.getByRole("button", { name: "Annuler" }).click();
+  await expect(dialog).toBeHidden();
 });
 
 test("réglages : le Mode Nuit et les garde-fous sont enregistrés et la session survit au rechargement de la page", async () => {

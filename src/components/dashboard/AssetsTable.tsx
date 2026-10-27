@@ -39,10 +39,12 @@ interface AssetsTableProps {
   onAdd?: () => void;
   /** Ouvre la correction d'une position existante. */
   onEdit?: (symbol: string) => void;
+  /** Ouvre la fiche d'un actif (le nom de l'actif devient cliquable). */
+  onOpen?: (symbol: string) => void;
 }
 
 /** Les positions du portefeuille, triées par valeur. */
-export function AssetsTable({ assets, currency, trends, trendsFailed = false, onAdd, onEdit }: AssetsTableProps) {
+export function AssetsTable({ assets, currency, trends, trendsFailed = false, onAdd, onEdit, onOpen }: AssetsTableProps) {
   const { mask } = usePrivacy();
   const [filter, setFilter] = useState<AssetFilter>("all");
   const visible = filterAssets(sortByValue(assets), filter);
@@ -140,7 +142,18 @@ export function AssetsTable({ assets, currency, trends, trendsFailed = false, on
                       >
                         {assetBadge(asset.symbol)}
                       </span>
-                      <span className="font-bold">{asset.symbol}</span>
+                      {onOpen ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpen(asset.symbol)}
+                          aria-label={`Voir le détail de ${asset.symbol}`}
+                          className="font-bold hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                        >
+                          {asset.symbol}
+                        </button>
+                      ) : (
+                        <span className="font-bold">{asset.symbol}</span>
+                      )}
                       {onEdit && (
                         <button
                           type="button"

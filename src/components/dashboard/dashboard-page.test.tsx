@@ -22,6 +22,7 @@ vi.mock("@/lib/queries/trends", async (importOriginal) => ({
 // Les cartes du robot et des ordres ont leurs propres tests (bot.test.tsx, orders.test.tsx) : ici, seul le portefeuille compte.
 vi.mock("@/components/bot/BotStatusCard", () => ({ BotStatusCard: () => null }));
 vi.mock("@/components/orders/OrdersCard", () => ({ OrdersCard: () => null }));
+vi.mock("@/components/portfolio/OperationsCard", () => ({ OperationsCard: () => null }));
 
 import { Dashboard } from "./Dashboard";
 

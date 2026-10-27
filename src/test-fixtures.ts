@@ -1,4 +1,4 @@
-import type { AlertDto, DigestDto, NotificationSettingsDto, OrderDto, RiskSettingsDto, TradingStatusDto } from "@/lib/api/types.gen";
+import type { AlertDto, DigestDto, NotificationSettingsDto, OperationDto, OrderDto, RiskSettingsDto, TradingStatusDto } from "@/lib/api/types.gen";
 
 export function settings(over: Partial<NotificationSettingsDto> = {}): NotificationSettingsDto {
   return {
@@ -87,6 +87,24 @@ export function alert(over: Partial<AlertDto> = {}): AlertDto {
     isTriggered: false,
     lastTriggeredAt: null,
     createdAt: "2026-10-20T09:00:00Z",
+    ...over,
+  };
+}
+
+let operationCounter = 0;
+/** Une opération du journal ; chaque appel a son propre identifiant et une date légèrement plus ancienne (les plus récentes d'abord). */
+export function operation(over: Partial<OperationDto> = {}): OperationDto {
+  operationCounter += 1;
+  return {
+    id: `op-${operationCounter}`,
+    symbol: "BTC",
+    kind: "BUY",
+    source: "DECLARED",
+    quantity: "0.05",
+    price: "60000",
+    realizedPnl: null,
+    orderId: null,
+    createdAt: new Date(Date.UTC(2026, 9, 27, 12, 0, 0) - operationCounter * 60_000).toISOString(),
     ...over,
   };
 }

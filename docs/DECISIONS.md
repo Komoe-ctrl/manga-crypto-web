@@ -221,14 +221,42 @@ Bouton « Déclarer une opération » dans « Mes actifs », et un crayon « Mod
 - **Le portefeuille est déclaratif** : il ne bouge pas tout seul si le client achète ailleurs, et ne détecte aucune erreur de saisie (une quantité fausse donne un portefeuille faux).
 - Pas d'import en bloc.
 
+## Étape 27 : l'historique des opérations et la fiche d'un actif
+
+### F53. Périmètre
+Écrans de l'historique (étape 26 de `crypto-api`) et **fiche d'un actif cliquable**, demandée à la lecture des captures : « les actifs ne doivent pas être cliquables ? ». Types régénérés depuis l'API fusionnée. Aucune dépendance ajoutée.
+
+### F54. L'historique : une carte et une page, pas d'entrée dans la navigation
+La carte **« Dernières opérations »** du tableau de bord (les 8 plus récentes, avec le résultat réalisé cumulé) renvoie vers la page `/historique` : filtre par actif, bouton « Voir plus », cumul. **Pas de cinquième lien dans la barre de navigation** : elle tient tout juste sur un téléphone (F44), un lien de plus la ferait déborder à nouveau. Le cumul vient de l'API, qui le calcule sur tout le journal : il **ne change pas quand on charge d'autres pages** (testé). Une page exactement pleine propose « Voir plus » ; si la suivante est vide, le bouton disparaît (l'API ne dit pas combien il en reste, on le déduit d'une page pleine).
+**Honnêteté sur le contenu :** l'historique **commence à la mise en service de l'étape 26** ; l'écran le dit dans son état vide. Les positions déjà déclarées n'y ont pas de passé.
+
+### F55. Une opération se lit comme une phrase
+« Achat de 0,05 BTC à 60 000,00 $US », « Position SOL fixée à 8 (prix moyen 150,00 $US) », « Position SOL retirée (5 SOL au prix moyen 150,00 $US) », avec le **résultat réalisé** d'une vente à droite (vert pour un gain, orangé pour une perte, vrai signe moins). Les opérations nées d'un **ordre** portent la mention « Ordre » ; l'API masque déjà la jambe en USDT d'un ordre. Le masquage des montants cache quantités, prix et gains, mais laisse lisibles l'actif et la nature de l'opération.
+
+### F56. La fiche d'un actif
+Le nom de l'actif devient un bouton (`aria-label="Voir le détail de BTC"`). La fiche montre le prix, une **grande courbe** nommée pour les lecteurs d'écran, les variations 24 h et 7 jours, **la position** (quantité, prix d'achat moyen, valeur, part, résultat latent), **les 5 dernières opérations de cet actif avec son résultat réalisé**, **ses alertes** (état armée, déclenchée ou en pause) et trois boutons **Acheter, Vendre, Corriger**. Ces boutons **remplacent** la fiche par la fenêtre de déclaration, déjà sur le bon actif et le bon mode, avec le prix du marché proposé : jamais deux fenêtres à la fois. Si la position est retirée ou corrigée pendant que sa fiche est ouverte et que l'actif n'existe plus, la fiche disparaît au lieu d'afficher une position fantôme. Les lectures de la fiche (opérations, alertes) échouent **séparément** : un message à la place de la section, le reste de la fiche et les boutons restent utilisables.
+
+### F57. Défaut trouvé en préparant l'affichage : une petite quantité s'affichait « 0 »
+`formatQuantity` arrondissait à 4 décimales partout : 0,00001234 BTC (environ 1 $) s'affichait « 0 ». Une position non nulle ne doit jamais sembler vide. Désormais **4 décimales à partir d'une unité, jusqu'à 8 en dessous** (0,05 et 0,842 ne changent pas). Le test qui figeait l'ancien arrondi (0,123456 affiché 0,1235) a été mis à jour. Corrige aussi le tableau, la fenêtre d'ordre et les confirmations, qui utilisent la même fonction.
+
+### F58. Ce que les essais ont montré sur l'outil, pas sur l'application
+- **Next garde les pages déjà visitées dans le DOM, cachées** (`cacheComponents`). Le formulaire d'alerte de la page « Alertes » était encore présent sur la page « Historique » : un sélecteur « Actif » trouvait deux champs. C'est le comportement attendu de l'application (l'état des pages est conservé) ; les sélecteurs des parcours sont désormais **limités à la page affichée** (`region` nommée). À savoir pour tout futur parcours.
+- **Les messages de confirmation répètent parfois les mots de l'historique** (« Position SOL retirée. » et « Position SOL retirée (5 SOL…) ») : le parcours cible la bulle par son rôle `status`.
+- **Charger le portefeuille attend les prix de Binance** (jusqu'à 10 s si la plateforme est lente, davantage sur la machine chargée) : la première attente du parcours est passée à 30 s. L'application, elle, affichait correctement « Chargement de votre portefeuille… ». Ce n'est pas un défaut de l'application, mais **le premier écran dépend d'un service externe** : si Binance est très lent, le client attend.
+
+### F59. Vérification
+- **Contre la vraie API** (base temporaire, vrai PostgreSQL) : 16 tests réels passent, dont l'historique (achat 100 @ 0,1, ventes de 30 @ 0,12 et 10 @ 0,08 : **+0,6 puis −0,2, cumul exact +0,4** lu avec les fonctions du front), la pagination par date, et un vrai ordre de simulation : son opération porte l'identifiant de l'ordre, sa jambe en USDT n'apparaît pas.
+- **Dans le vrai navigateur** : 15 parcours sur 15, dont le nouveau (carte, page filtrée sur SOL avec ses quatre lignes et ses **+150,00 $US**, fiche d'ETH dans l'écran, de la fiche à un achat sur ETH). Captures relues.
+- Tests unitaires : voir `docs/ETAPES.md`.
+*Non couvert :* la fiche et l'historique sur un vrai téléphone (la fiche est une longue fenêtre qui défile) ; un historique de plusieurs centaines de lignes.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| **Feuille de route vers un client réel** | Étape 26 : application installable sur téléphone (manifeste, icônes ; sur iPhone le Push exige l'installation) et scripts pour créer le compte du client et fermer l'inscription. Étape 27 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 28 : mentions (« pas un conseil financier ») et recette avec le client |
-| Historique des opérations déclarées | L'API ne conserve pas les achats et ventes déclarés (F52) : il faut une table côté `crypto-api`, puis un écran |
+| **Feuille de route vers un client réel** | Étape 28 : application installable sur téléphone (manifeste, icônes ; sur iPhone le Push exige l'installation) et scripts pour créer le compte du client et fermer l'inscription. Étape 29 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 30 : mentions (« pas un conseil financier ») et recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
 | Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |

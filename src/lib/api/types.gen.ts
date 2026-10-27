@@ -179,6 +179,54 @@ export type TrendsDto = {
     complete: boolean;
 };
 
+/**
+ * BUY, SELL : achat ou vente ; SET : position définie telle quelle (import, correction) ; REMOVE : position retirée
+ */
+export type OperationKind = 'BUY' | 'SELL' | 'SET' | 'REMOVE';
+
+/**
+ * DECLARED : déclaré par l’utilisateur ; ORDER : conséquence d’un ordre exécuté
+ */
+export type OperationSource = 'DECLARED' | 'ORDER';
+
+export type OperationDto = {
+    id: string;
+    symbol: string;
+    /**
+     * BUY, SELL : achat ou vente ; SET : position définie telle quelle (import, correction) ; REMOVE : position retirée
+     */
+    kind: OperationKind;
+    /**
+     * DECLARED : déclaré par l’utilisateur ; ORDER : conséquence d’un ordre exécuté
+     */
+    source: OperationSource;
+    /**
+     * Quantité échangée (BUY, SELL), nouvelle quantité (SET) ou quantité retirée (REMOVE)
+     */
+    quantity: string;
+    /**
+     * Prix unitaire (BUY, SELL) ou prix d’achat moyen (SET, REMOVE), en USD
+     */
+    price: string;
+    /**
+     * Résultat réalisé d’une vente, en USD ; null sinon
+     */
+    realizedPnl: string | null;
+    /**
+     * Ordre à l’origine du changement (source ORDER)
+     */
+    orderId: string | null;
+    createdAt: string;
+};
+
+export type OperationListDto = {
+    items: Array<OperationDto>;
+    /**
+     * Résultat réalisé cumulé en USD, sur tout le journal (ou sur l’actif demandé) : il ne dépend pas de la page lue
+     */
+    realizedTotal: string;
+};
+
 export type RecordTransactionDto = {
     symbol: string;
     side: 'BUY' | 'SELL';
@@ -756,6 +804,29 @@ export type PortfolioControllerGetTrendsResponses = {
 };
 
 export type PortfolioControllerGetTrendsResponse = PortfolioControllerGetTrendsResponses[keyof PortfolioControllerGetTrendsResponses];
+
+export type PortfolioControllerOperationsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Un seul actif
+         */
+        symbol?: string;
+        limit?: number;
+        /**
+         * Pagination : opérations antérieures à cette date (ISO 8601)
+         */
+        before?: string;
+    };
+    url: '/api/portfolio/operations';
+};
+
+export type PortfolioControllerOperationsResponses = {
+    200: OperationListDto;
+};
+
+export type PortfolioControllerOperationsResponse = PortfolioControllerOperationsResponses[keyof PortfolioControllerOperationsResponses];
 
 export type PortfolioControllerRecordData = {
     body: RecordTransactionDto;
