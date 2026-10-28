@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth/auth-provider";
 import { usePrivacy } from "@/lib/privacy";
 import { useRealtimeStatus } from "@/lib/realtime/realtime-provider";
 import { NARROW, useMediaQuery } from "@/lib/use-media-query";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { AppNav } from "./AppNav";
 
 const LIVE_LABEL = { open: "En direct", connecting: "Connexion…", reconnecting: "Reconnexion…", idle: "" } as const;
@@ -46,6 +47,7 @@ export function AppHeader() {
             </span>
           )}
           {state.status === "authenticated" && <span className="hidden text-sm text-muted xl:inline">{state.user.email}</span>}
+          <NotificationBell />
           <button
             type="button"
             onClick={toggle}

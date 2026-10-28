@@ -408,6 +408,45 @@ test("installation sur téléphone : manifeste, icônes, métadonnées et aide d
   await shot("10-installation");
 });
 
+test("notifications : un message de test arrive dans la boîte, la cloche compte les non lues, on marque comme lu", async () => {
+  await page.getByRole("link", { name: "Réglages" }).click();
+  await page.getByRole("button", { name: "Envoyer un message de test" }).click();
+  await expect(page.getByRole("list", { name: "Résultat du message de test" })).toBeVisible();
+
+  // La cloche de l'en-tête compte la notification créée (le compte est dans son nom accessible).
+  const bell = page.getByRole("link", { name: /^Notifications, \d+ non lues?$/ });
+  await expect(bell).toBeVisible();
+  const before = Number(((await bell.getAttribute("aria-label")) ?? "").match(/\d+/)![0]);
+  await bell.click();
+  await expect(page.getByRole("heading", { level: 1, name: "Notifications" })).toBeVisible();
+
+  const inbox = page.getByRole("list", { name: "Notifications", exact: true });
+  await expect(inbox.getByText("Notification de test").first()).toBeVisible();
+  await expect(inbox.getByText("Non lue").first()).toBeVisible();
+  await shot("10-notifications");
+
+  // Une seule marquée comme lue : le compte baisse d'une unité.
+  await page
+    .getByRole("button", { name: /^Marquer comme lue : Notification de test/ })
+    .first()
+    .click();
+  const after = before - 1;
+  const bellAfter = after > 0 ? new RegExp(`^Notifications, ${after} non lues?$`) : "Notifications";
+  await expect(page.getByRole("link", { name: bellAfter, exact: after === 0 })).toBeVisible();
+
+  // Tout marquer comme lu : plus de compteur, plus de « Non lue », le bouton se désactive.
+  const readAll = page.getByRole("button", { name: /Tout marquer comme lu/ });
+  if (await readAll.isEnabled()) await readAll.click();
+  await expect(page.getByRole("link", { name: "Notifications", exact: true })).toBeVisible();
+  await expect(readAll).toBeDisabled();
+  await expect(inbox.getByText("Non lue")).toHaveCount(0);
+
+  // Le filtre « Non lues » ne montre plus rien.
+  await page.getByRole("button", { name: "Non lues" }).click();
+  await expect(page.getByText("Tout est lu.")).toBeVisible();
+  await page.getByRole("button", { name: "Toutes" }).click();
+});
+
 test("temps réel : un arrêt d'urgence décidé dans un onglet apparaît tout seul dans l'autre", async () => {
   await page.getByRole("link", { name: "Tableau de bord" }).click();
   await expect(heading("Le robot est actif")).toBeVisible();
