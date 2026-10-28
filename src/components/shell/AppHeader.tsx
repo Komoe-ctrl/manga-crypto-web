@@ -31,7 +31,7 @@ export function AppHeader() {
       <div className="flex items-center gap-2.5">
         {status !== "idle" && (
           <span role="status" className="flex items-center gap-1.5 text-xs text-muted">
-            <span className={`h-1.5 w-1.5 rounded-full ${status === "open" ? "bg-accent" : "bg-muted"}`} aria-hidden="true" />
+            <span className={`h-1.5 w-1.5 rounded-full ${status === "open" ? "breathe bg-accent" : "bg-muted"}`} aria-hidden="true" />
             {LIVE_LABEL[status]}
           </span>
         )}

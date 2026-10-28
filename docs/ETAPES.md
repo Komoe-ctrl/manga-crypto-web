@@ -371,3 +371,53 @@ Prérequis : une API qui expose `GET /api/portfolio/operations` (étape 26 de `c
 `npm run typecheck`, `npm run lint`, `npm run build`, `npm test` (656 tests ; `--maxWorkers=2` si la mémoire manque), `npm run test:real` (16), `npm run test:e2e` (15 parcours) : OK. Détails, défauts et limites dans F53 à F59.
 
 **Pas encore fait** : étapes 28 (application installable sur téléphone, création du compte du client), 29 (mise en service hébergée, sauvegardes) et 30 (mentions, recette) de la feuille de route, import en bloc des positions.
+
+
+## Étape 28 : installable sur téléphone, vivante et plus forte à l'œil
+
+### Ce que l'on voit
+
+- **Carte principale** : le montant, le résultat avec une flèche, l'état du marché, **une grande courbe de la valeur sur 7 jours** (survol, toucher ou flèches du clavier pour lire un point) et **un anneau de répartition**.
+- **Mes actifs** : sur téléphone, **une carte par actif** (au lieu d'un tableau qui défile) ; sur ordinateur, le tableau avec des flèches sur les variations.
+- **Les prix se mettent à jour seuls** toutes les 30 secondes ; un chiffre qui bouge se teinte doucement.
+- **Réglages > Application sur téléphone** : comment installer Veille sur l'écran d'accueil (et le bouton d'installation si le navigateur le propose).
+
+### Mettre le client en service sur son téléphone
+
+1. **Créer son compte** (vous, côté API) : `npm run user:create -- client@example.com --name "Prénom Nom" --timezone Europe/Paris` (voir l'étape 28 de `crypto-api`).
+2. **Il se connecte** sur son téléphone avec cette adresse et son mot de passe.
+3. **Il installe l'application** : iPhone, Safari > Partager > « Sur l'écran d'accueil » ; Android, Chrome > menu > « Installer l'application ». Elle s'ouvre ensuite comme une application.
+4. **Il active les alertes** : ouvrir Veille depuis l'écran d'accueil, Réglages > Notifications Push > « Activer sur cet appareil » (sur iPhone, **seulement depuis l'application installée**, iOS 16.4 ou plus récent).
+5. **Il déclare ses positions** : « Ajouter mon premier actif » (quantité et prix d'achat moyen).
+
+> Ces étapes ne sont **pas encore vérifiées sur un vrai téléphone**. À faire une fois, ensemble, avant de les donner au client.
+
+### Organisation du code
+
+| Fichier | Rôle |
+|---|---|
+| `src/app/manifest.ts`, `layout.tsx` | Manifeste de l'application, couleur de la barre, métadonnées iPhone |
+| `scripts/make-icons.mjs` (`npm run icons`), `public/icons/`, `src/app/icon.png`, `apple-icon.png` | Icônes (l'œil de la marque), reproductibles |
+| `src/lib/install.ts`, `src/components/settings/InstallCard.tsx` | Écoute de l'invite d'installation, carte d'aide |
+| `src/lib/portfolio-series.ts`, `components/dashboard/PortfolioChart.tsx` | Courbe de valeur (calcul et affichage) |
+| `components/dashboard/AllocationDonut.tsx`, `AssetCards.tsx`, `WalletHeader.tsx` | Anneau, cartes de téléphone, carte principale |
+| `components/ui/Ticker.tsx`, `Skeleton.tsx`, `src/app/globals.css` | Teinte d'un chiffre qui bouge, squelettes, animations calmes |
+| `src/lib/use-media-query.ts` | Tableau ou cartes selon la largeur |
+
+### Diagnostiquer
+
+| Symptôme | Cause probable |
+|---|---|
+| Pas de bouton « Installer l'application » | Normal sur Safari (pas d'invite : suivre le texte) ; sur Chrome/Edge, l'application est déjà installée ou le navigateur ne la juge pas installable (https exigé hors `localhost`) |
+| Pas de Push sur iPhone | L'application n'est pas ouverte depuis l'écran d'accueil, ou iOS plus ancien que 16.4 |
+| « Pas de courbe : le portefeuille ne contient que de la trésorerie… » | Normal : une trésorerie en USDT seule ne varie pas |
+| « Sans ETH : courbe indisponible » | La courbe de cet actif n'a pas pu être lue (Binance) ou est trop courte (actif récent) |
+| « Actualisation impossible pour le moment » | Une relecture automatique a échoué : les chiffres sont ceux de la dernière lecture réussie |
+| Les chiffres ne bougent pas | Normal si le marché est calme ; relecture toutes les 30 s, onglet visible seulement |
+| Aucune animation | L'appareil demande moins d'animations (voulu) |
+
+### Vérifications
+
+`npm run typecheck`, `npm run lint`, `npm test` (764 tests ; `--maxWorkers=2` si la mémoire manque), `npm run test:e2e` (18 parcours) : OK. Détails, défauts et limites dans F60 à F67.
+
+**Pas encore fait** : essai sur un vrai téléphone, mise en service hébergée (étape 29), mentions et recette (étape 30).

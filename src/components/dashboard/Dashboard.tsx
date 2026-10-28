@@ -7,10 +7,12 @@ import { PositionDialog } from "@/components/portfolio/PositionDialog";
 import { OrdersCard } from "@/components/orders/OrdersCard";
 import { useState } from "react";
 import { Glass } from "@/components/ui/glass";
+import { CardLoading } from "@/components/ui/query-state";
 import { usePortfolio } from "@/lib/queries/portfolio";
 import type { PositionMode } from "@/lib/positions";
 import { marketState, trendOf, useTrends } from "@/lib/queries/trends";
 import { AssetsTable } from "./AssetsTable";
+import { PortfolioChart } from "./PortfolioChart";
 import { WalletHeader } from "./WalletHeader";
 
 /** Tableau de bord : valeur du portefeuille, répartition et positions. */
@@ -23,15 +25,10 @@ export function Dashboard() {
   // Fiche d'un actif ouverte (son symbole), sinon `null`.
   const [detail, setDetail] = useState<string | null>(null);
 
-  if (isPending) {
-    return (
-      <Glass aria-busy="true" className="p-7 text-muted">
-        Chargement de votre portefeuille…
-      </Glass>
-    );
-  }
+  // Seulement tant qu'on n'a AUCUNE donnée : une relecture en arrière-plan qui échoue ne remplace jamais un portefeuille déjà là.
+  if (isPending && !portfolio) return <CardLoading>Chargement de votre portefeuille…</CardLoading>;
 
-  if (error || !portfolio) {
+  if (!portfolio) {
     return (
       <Glass role="alert" className="flex flex-col items-start gap-4 p-7">
         <p className="text-loss">Impossible de charger votre portefeuille.</p>
@@ -50,12 +47,21 @@ export function Dashboard() {
   // Une position retirée ou corrigée pendant que sa fiche est ouverte : si l'actif n'existe plus, la fiche disparaît.
   const detailAsset = detail ? portfolio.assets.find((a) => a.symbol === detail) : undefined;
 
+  const trendStatus = trends.data ? "ready" : trends.isError ? "unavailable" : "loading";
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <BotStatusCard />
+      {error && (
+        // Les prix se relisent seuls toutes les 30 s : si une lecture échoue, on garde les derniers chiffres et on le dit.
+        <p role="status" className="text-sm text-muted">
+          Actualisation impossible pour le moment : les chiffres affichés datent de la dernière lecture réussie.
+        </p>
+      )}
       <WalletHeader
         portfolio={portfolio}
         market={trends.data ? { state: marketState(trends.data), btcChange24hPct: trends.data.market.btcChange24hPct } : undefined}
+        chart={<PortfolioChart assets={portfolio.assets} trends={trends.data} status={trendStatus} currency={portfolio.currency} />}
       />
       <AssetsTable
         assets={portfolio.assets}

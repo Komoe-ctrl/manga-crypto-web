@@ -1,10 +1,16 @@
 import { Glass } from "@/components/ui/glass";
+import { Skeleton } from "@/components/ui/Skeleton";
 
-/** Chargement d'une carte : annoncé comme occupé, sans animation qui clignote. */
+/**
+ * Chargement d'une carte : un emplacement doux (la mise en page ne saute pas à l'arrivée des données), annoncé comme
+ * occupé aux lecteurs d'écran par son texte.
+ */
 export function CardLoading({ children }: { children: string }) {
   return (
-    <Glass aria-busy="true" className="p-7 text-muted">
-      {children}
+    <Glass aria-busy="true" className="flex flex-col gap-3 p-7">
+      <span className="sr-only">{children}</span>
+      <Skeleton aria-hidden="true" className="h-5 w-1/3" />
+      <Skeleton aria-hidden="true" className="h-10 w-2/3" />
     </Glass>
   );
 }
