@@ -1,14 +1,11 @@
-import { AppHeader } from "@/components/shell/AppHeader";
+import { AppShell } from "@/components/shell/AppShell";
 import { RequireAuth } from "@/components/shell/RequireAuth";
 
-/** Pages réservées aux utilisateurs connectés : en-tête commun et garde d'accès. */
+/** Pages réservées aux utilisateurs connectés : coque commune (en-tête fixe, navigation, pied de page) et garde d'accès. */
 export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <RequireAuth>
-      <div className="mx-auto flex max-w-[1280px] flex-col gap-6 px-6 pb-16 pt-7">
-        <AppHeader />
-        {children}
-      </div>
+      <AppShell>{children}</AppShell>
     </RequireAuth>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { BellRing, Trash2 } from "lucide-react";
+import { Bell, BellRing, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { PageColumn, PageHeader } from "@/components/shell/PageHeader";
 import { Glass } from "@/components/ui/glass";
 import { CardError, CardLoading } from "@/components/ui/query-state";
 import { Switch } from "@/components/ui/switch";
@@ -75,6 +76,15 @@ function AlertRow({ alert }: { alert: AlertDto }) {
 
 /** Alertes de prix et de portefeuille : liste (armée / déclenchée / en pause) et création. */
 export function AlertsPage() {
+  return (
+    <PageColumn width="lg">
+      <PageHeader icon={Bell} title="Alertes" description="Soyez prévenu sans surveiller les marchés." />
+      <AlertsContent />
+    </PageColumn>
+  );
+}
+
+function AlertsContent() {
   const alerts = useAlerts();
   const portfolio = usePortfolio();
 
@@ -91,7 +101,7 @@ export function AlertsPage() {
   const symbols = [...new Set([...held, ...DEFAULT_SYMBOLS])];
 
   return (
-    <div className="grid max-w-4xl gap-6 md:grid-cols-[1fr_minmax(0,22rem)]">
+    <div className="grid gap-6 md:grid-cols-[1fr_minmax(0,22rem)]">
       <Glass aria-labelledby="alerts-title" className="flex flex-col gap-2 p-6">
         <h2 id="alerts-title" className="text-[13px] font-semibold uppercase tracking-wider text-muted">
           Vos alertes

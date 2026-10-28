@@ -1,5 +1,7 @@
 "use client";
 
+import { FileText } from "lucide-react";
+import { PageColumn, PageHeader } from "@/components/shell/PageHeader";
 import { Glass } from "@/components/ui/glass";
 import { useAuth } from "@/lib/auth/auth-provider";
 import { useDailyDigests, useWeeklyDigests } from "@/lib/queries/digests";
@@ -10,6 +12,15 @@ import { DigestHistory } from "./DigestHistory";
 
 /** Rapports : celui du matin, d'hier, des 7 jours, et l'historique. */
 export function ReportsPage() {
+  return (
+    <PageColumn>
+      <PageHeader icon={FileText} title="Rapports" description="Ce qui s'est passé pendant que vous n'étiez pas là." />
+      <ReportsContent />
+    </PageColumn>
+  );
+}
+
+function ReportsContent() {
   const { state } = useAuth();
   const daily = useDailyDigests();
   const weekly = useWeeklyDigests();
@@ -43,7 +54,7 @@ export function ReportsPage() {
 
   const nextReportTime = minutesToTime(settings.data?.digestMinute ?? 480);
   return (
-    <div className="flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <DigestCard daily={daily.data.items} weekly={weekly.data.items} timeZone={timeZone} nextReportTime={nextReportTime} />
       <DigestHistory digests={daily.data.items} timeZone={timeZone} />
     </div>
