@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Les tests de navigateur construisent dans un dossier à part (`.next-e2e`) pour ne pas gêner le serveur de développement.
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
+  // Image Docker : serveur autonome (`server.js`) sans le dossier node_modules complet. Activé par le Dockerfile seulement :
+  // sous Windows, la copie des liens symboliques de ce mode peut échouer en local.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,

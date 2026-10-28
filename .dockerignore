@@ -1,0 +1,16 @@
+node_modules
+.next
+.next-e2e
+coverage
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.git
+.vscode
+.idea
+*.log
+# e2e/ reste dans l'image : playwright.config.ts l'importe et `next build` vérifie ses types. Seules les sorties sont exclues.
+e2e/captures
+e2e/results
+docs
