@@ -486,3 +486,34 @@ Envelopper son contenu dans `<PageColumn>` avec un `<PageHeader icon={…} title
 ### Vérifications
 `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` : voir la PR. Détails et limites dans F72 à F75.
 
+---
+
+## Étape 31 : mise en service (site)
+
+### Ce qui est livré
+- `Dockerfile` et `.dockerignore` : image de production du site (serveur autonome Next, 417 Mo).
+- `scripts/docker-start.mjs` : lanceur qui répond à SIGTERM.
+- `next.config.ts` : `output: "standalone"`, activé par `NEXT_OUTPUT=standalone` (le Dockerfile le fait).
+- Le mode d'emploi complet (variables, ordre, compte du client, sauvegarde, mise à jour, diagnostic) est dans **`crypto-api/docs/DEPLOIEMENT.md`**.
+
+### Construire l'image
+```
+docker build -t veille-web \
+  --build-arg NEXT_PUBLIC_API_URL=https://api.exemple.fr \
+  --build-arg NEXT_PUBLIC_WS_URL=wss://api.exemple.fr .
+```
+Les deux adresses sont figées dans le code : une image par environnement. Sans `NEXT_PUBLIC_API_URL`, la construction s'arrête avec un message clair.
+
+### Diagnostiquer
+| Symptôme | Cause probable |
+|---|---|
+| La construction s'arrête : « NEXT_PUBLIC_API_URL est obligatoire » | Argument de construction oublié |
+| Le site appelle `localhost:3001` | Image construite avec une mauvaise adresse : reconstruire |
+| Le conteneur met 20 s à s'arrêter | Ne devrait plus arriver (F77) : vérifier que le lanceur `docker-start.mjs` est bien celui de `CMD` |
+| Le client est déconnecté toutes les 15 minutes | Site et API pas sous le même domaine (voir `DEPLOIEMENT.md`) |
+
+### Vérifications
+Image construite et exécutée : voir F78. `npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` : voir la PR.
+
+**Reste à faire** : choisir la plateforme et le domaine, déployer, essayer l'installation et le Push sur le téléphone du client.
+

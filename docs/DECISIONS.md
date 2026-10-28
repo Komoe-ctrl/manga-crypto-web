@@ -319,13 +319,29 @@ Pas de marquage à l'ouverture de la page : on pourrait manquer une alerte en pa
 `npm run typecheck`, `npm run lint` : OK. Tests : cloche (singulier, zéro, 99+, page courante), page (vide, non lues, critique, canal, échec expliqué, Mode Nuit, rapport, marquer, tout marquer, filtre, page suivante, erreur). Parcours e2e réel : message de test envoyé depuis les Réglages, la cloche le compte, la page le liste, une marquée lue (le compte baisse d'une), tout marqué lu, filtre « Non lues » vide.
 **Non vérifié** : une notification **retenue par le Mode Nuit** ou **reprise dans un rapport** n'est vue qu'en test unitaire (le parcours e2e n'en fabrique pas : cela demande l'horloge du serveur) ; pas de suppression ni d'archivage des notifications (l'API n'en propose pas) ; pas d'essai sur un vrai téléphone.
 
+## Étape 31 : mise en service (site)
+
+### F76. Une image Docker du site, une image par environnement
+Le site est compilé avec `output: "standalone"` (serveur autonome `server.js`, image de 417 Mo au lieu d'un `node_modules` complet), activé **seulement par le Dockerfile** (`NEXT_OUTPUT=standalone`) : sous Windows la copie des liens symboliques de ce mode peut échouer en local. `NEXT_PUBLIC_API_URL` et `NEXT_PUBLIC_WS_URL` sont **figées dans le code compilé** : changer d'adresse demande de reconstruire. La construction **refuse** de se faire sans `NEXT_PUBLIC_API_URL` (sinon l'application viserait `localhost:3001` en production). Processus non privilégié, sonde de santé sur `/login` (page publique).
+
+### F77. Défauts trouvés en essayant l'image
+Chacun a été trouvé en **faisant tourner l'image**, pas en la relisant :
+- `.dockerignore` excluait `e2e/`, mais `playwright.config.ts` l'importe et `next build` vérifie ses types : la construction échouait. Seules les sorties (`e2e/captures`, `e2e/results`) sont exclues.
+- **Arrêt forcé** : à l'arrêt, le conteneur ne réagissait pas à SIGTERM (code 137 après 20 s). Node est le processus n° 1 du conteneur et le noyau n'applique pas l'action par défaut des signaux à ce processus. Sur une plateforme, chaque déploiement aurait attendu le délai d'arrêt forcé. `scripts/docker-start.mjs` installe le gestionnaire (sans nouveau paquet) ; arrêt en 1,3 s, code 0. Le site ne garde aucun état en mémoire : s'arrêter tout de suite est sans conséquence.
+- Sonde de santé : 5 s était trop court pour le premier appel à froid sur une machine chargée ; portée à 10 s (aussi côté API).
+- `npm ci` : plusieurs tentatives (un téléchargement coupé, vu deux fois, ne doit pas faire échouer un déploiement).
+
+### F78. Vérification et limites
+**Image du site construite puis exécutée** : `/login` 200 (titre attendu), processus non root, adresse de l'API figée dans les 13 fichiers servis et **aucune** adresse de développement, manifeste, trois icônes, service worker (jamais en cache, politique de sécurité), 404 avec notre page, état `healthy`, arrêt propre. Les parcours e2e (18 puis 20) ne portent pas sur l'image : ils tournent sur un serveur de production local.
+**Non vérifié** : l'image **derrière un vrai proxy https** ; la connexion réelle site → API depuis l'image (adresses d'exemple, sans domaine) ; le comportement des WebSocket `wss://` chez l'hébergeur ; aucune plateforme ni domaine choisis. Le mode d'emploi complet est dans `crypto-api/docs/DEPLOIEMENT.md`.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 (**faite**) : mise en page et identité (F68 à F71). Étape 30 (**faite**) : boîte de réception des notifications (F72 à F75). Étape 31 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 32 : recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
+| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 (**faite**) : mise en page et identité (F68 à F71). Étape 30 (**faite**) : boîte de réception des notifications (F72 à F75). Étape 31 (**préparée, pas déployée**) : images Docker de l'API et du site, sonde de santé, sauvegarde et restauration vérifiées, mode d'emploi (F76 à F78 ici, D133 à D139 côté API) ; **le déploiement demande un hébergement et un nom de domaine, choisis par le client** (le domaine est obligatoire : cookie `SameSite=Strict`). Étape 32 : recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
 | Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
