@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { PrivacyProvider, resetPrivacyForTests, usePrivacy } from "@/lib/privacy";
-import { AllocationBar } from "./AllocationBar";
 import { AssetsTable } from "./AssetsTable";
 import { WalletHeader } from "./WalletHeader";
 import { filterAssets, sortByValue } from "./asset-sort";
@@ -98,25 +97,6 @@ describe("WalletHeader", () => {
     expect(plain(document.body.textContent)).not.toContain("88 032");
     expect(plain(document.body.textContent)).not.toContain("14 749");
     expect(plain(document.body.textContent)).toContain("+20,13 %"); // le pourcentage n'est pas un montant
-  });
-});
-
-describe("AllocationBar", () => {
-  it("affiche une légende par actif, du plus gros au plus petit", () => {
-    render(<AllocationBar assets={SAMPLE.assets} />);
-    const items = within(screen.getByRole("list")).getAllByRole("listitem");
-    expect(items.map((li) => li.textContent?.split(" ")[0])).toEqual(["BTC", "ETH", "LINK", "USDC"]);
-    expect(plain(items[0].textContent)).toContain("73 %");
-  });
-
-  it("n'affiche rien quand aucune position n'a de poids", () => {
-    const { container } = render(<AllocationBar assets={[asset({ symbol: "X", weightPct: null })]} />);
-    expect(container.firstChild).toBeNull();
-  });
-
-  it("n'affiche rien pour un portefeuille vide", () => {
-    const { container } = render(<AllocationBar assets={[]} />);
-    expect(container.firstChild).toBeNull();
   });
 });
 

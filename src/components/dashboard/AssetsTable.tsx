@@ -1,10 +1,11 @@
 "use client";
 
-import { Pencil, Plus } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { Glass } from "@/components/ui/glass";
 import { Segmented } from "@/components/ui/segmented";
 import { Sparkline } from "@/components/ui/Sparkline";
+import { Ticker } from "@/components/ui/Ticker";
 import type { AssetValuationDto, TrendsDto } from "@/lib/api/types.gen";
 import {
   TONE_CLASS,
@@ -19,7 +20,9 @@ import {
   tone,
 } from "@/lib/format";
 import { usePrivacy } from "@/lib/privacy";
+import { NARROW, useMediaQuery } from "@/lib/use-media-query";
 import { trendOf } from "@/lib/queries/trends";
+import { AssetCards } from "./AssetCards";
 import { filterAssets, sortByValue, type AssetFilter } from "./asset-sort";
 
 const FILTERS = [
@@ -46,6 +49,8 @@ interface AssetsTableProps {
 /** Les positions du portefeuille, triées par valeur. */
 export function AssetsTable({ assets, currency, trends, trendsFailed = false, onAdd, onEdit, onOpen }: AssetsTableProps) {
   const { mask } = usePrivacy();
+  // Sur téléphone : une carte par actif plutôt qu'un tableau qui défile horizontalement.
+  const narrow = useMediaQuery(NARROW);
   const [filter, setFilter] = useState<AssetFilter>("all");
   const visible = filterAssets(sortByValue(assets), filter);
 
@@ -96,6 +101,8 @@ export function AssetsTable({ assets, currency, trends, trendsFailed = false, on
         </div>
       ) : visible.length === 0 ? (
         <p className="py-6 text-center text-muted">Aucun actif ne correspond à ce filtre.</p>
+      ) : narrow ? (
+        <AssetCards assets={visible} currency={currency} trends={trends} onEdit={onEdit} onOpen={onOpen} />
       ) : (
         <div className="-mx-2 overflow-x-auto">
           <table className="w-full min-w-[860px] border-collapse text-sm">
@@ -168,10 +175,12 @@ export function AssetsTable({ assets, currency, trends, trendsFailed = false, on
                   </td>
                   <td className="px-3 py-3.5 text-right tabular-nums text-ink-soft">{mask(formatQuantity(asset.quantity))}</td>
                   <td className="px-3 py-3.5 text-right font-semibold tabular-nums">
-                    {formatPrice(asset.currentPrice, currency)}
+                    <Ticker value={asset.currentPrice}>{formatPrice(asset.currentPrice, currency)}</Ticker>
                   </td>
                   <TrendCells symbol={asset.symbol} trends={trends} />
-                  <td className="px-3 py-3.5 text-right font-bold tabular-nums">{mask(formatMoney(asset.value, currency))}</td>
+                  <td className="px-3 py-3.5 text-right font-bold tabular-nums">
+                    <Ticker value={asset.value}>{mask(formatMoney(asset.value, currency))}</Ticker>
+                  </td>
                   <td className="px-3 py-3.5 text-right tabular-nums">
                     <div className="flex flex-col items-end">
                       <span className={`font-bold ${TONE_CLASS[tone(asset.pnl)]}`}>{mask(formatSigned(asset.pnl, currency))}</span>
@@ -203,8 +212,20 @@ function TrendCells({ symbol, trends }: { symbol: string; trends?: TrendsDto }) 
   const week = trend?.change7dPct ?? null;
   return (
     <>
-      <td className={`px-3 py-3.5 text-right font-semibold tabular-nums ${trend?.change24hPct ? TONE_CLASS[tone(trend.change24hPct)] : "text-muted"}`}>
-        {trend?.change24hPct ? formatPercent(trend.change24hPct) : "—"}
+      <td className="px-3 py-3.5 text-right font-semibold tabular-nums">
+        {trend?.change24hPct ? (
+          // Le sens est écrit (signe du pourcentage) ET montré (flèche, couleur) : la couleur ne porte jamais seule l'information.
+          <span className={`inline-flex items-center justify-end gap-0.5 ${TONE_CLASS[tone(trend.change24hPct)]}`}>
+            {tone(trend.change24hPct) === "loss" ? (
+              <ArrowDownRight className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+            )}
+            {formatPercent(trend.change24hPct)}
+          </span>
+        ) : (
+          <span className="text-muted">—</span>
+        )}
       </td>
       <td className="px-3 py-3.5 text-right">
         {trend && trend.sparkline.length > 1 ? (

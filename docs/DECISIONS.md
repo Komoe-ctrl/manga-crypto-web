@@ -250,13 +250,52 @@ Le nom de l'actif devient un bouton (`aria-label="Voir le détail de BTC"`). La 
 - Tests unitaires : voir `docs/ETAPES.md`.
 *Non couvert :* la fiche et l'historique sur un vrai téléphone (la fiche est une longue fenêtre qui défile) ; un historique de plusieurs centaines de lignes.
 
+## Étape 28 : installable sur téléphone, vivante, plus forte à l'œil
+
+### F60. Périmètre et principe
+« Vivante, belle et forte » (demande du propriétaire) **sans trahir la maquette validée par le client** : interface calme, rien qui clignote. Les exemples de tableaux de bord de trader montrés (neon, bougies, panneaux denses) ne sont pas repris : le client « ne surveille pas les marchés ». Repris, en version calme : une **grande courbe de valeur**, un **anneau de répartition**, des chiffres plus marqués, des **cartes** sur téléphone. Aucune dépendance ajoutée. Côté API, les comptes du client (PR « étape 28 » de `crypto-api`).
+
+### F61. Installable : manifeste, icônes, métadonnées
+`app/manifest.ts` (application autonome, en français, démarre sur l'accueil), couleurs identiques au jeton `--color-canvas` (**un test vérifie que manifeste, barre du système et feuille de style ne dérivent pas**), et trois icônes (192, 512, et une « maskable » recadrable par le système) plus celle de l'iPhone, **dessinées par un script reproductible** (`npm run icons` : l'œil de la marque, turquoise sur fond sombre). Un test lit l'en-tête de chaque PNG : **la taille annoncée doit être la taille réelle**, sinon le navigateur refuse l'installation. Le favicon par défaut de Next est supprimé. Sur iPhone, la barre d'état est noire et le titre est « Veille ».
+**Pourquoi c'est important :** sur iPhone, le Push ne fonctionne que si l'application est installée sur l'écran d'accueil (iOS 16.4 ou plus récent).
+
+### F62. Une carte d'aide dans les Réglages, honnête sur ce qui est possible
+« Application sur téléphone » : déjà installée → le dit ; Chrome ou Edge ont proposé l'installation → un bouton qui ouvre **leur** invite ; sinon le geste à faire selon la plateforme (Safari : Partager puis « Sur l'écran d'accueil » ; Chrome : menu ; ordinateur : l'icône de la barre d'adresse). **Safari n'a pas d'invite : on explique, on ne simule pas un bouton.** Le navigateur n'annonce l'installation possible qu'**une seule fois**, souvent avant l'ouverture des Réglages : l'écoute démarre dès le lancement de l'application et garde l'événement (testé : une invite arrivée avant l'ouverture de l'écran est retrouvée, elle ne sert qu'une fois, `appinstalled` la retire). La plateforme est devinée par l'agent utilisateur (approximatif, d'où seulement un texte d'aide).
+
+### F63. La grande courbe : honnête sur ce qu'elle montre
+Valeur du portefeuille sur 7 jours **avec les positions ACTUELLES** : Σ quantité actuelle × prix de l'époque, calculé à partir des courbes déjà chargées (aucun appel de plus). **Ce n'est pas l'historique réel** (l'API ne le conserve pas) et l'écran le dit en toutes lettres sous la courbe. Un actif sans courbe complète est **laissé de côté et nommé** (« Sans ETH : courbe indisponible ») plutôt que mal aligné ; une trésorerie en USDT seule ne fait pas de courbe. Lecture d'un point **au survol, au toucher et au clavier** (flèches, Début, Fin), « maintenant » au repos, avec l'ancienneté approximative (« ≈ il y a 3 j ») ; le pourcentage de la période est écrit ; la couleur ne porte pas seule l'information ; le montant lu est masqué avec les autres.
+
+### F64. Vivante, sans clignoter
+- **Les prix se rafraîchissent seuls** toutes les 30 secondes (l'API met ses prix en cache 15 s), onglet visible seulement. Avant cela, les prix restaient figés jusqu'à un rechargement.
+- **Un chiffre qui bouge se teinte une seconde** (vert pâle, orangé pâle) puis revient au repos : fond qui s'estompe, jamais de clignotement. **Pas de teinte quand les montants sont masqués** (elle révélerait le sens de la variation).
+- Les cartes **entrent en douceur** (0,3 s), le point « En direct » **respire** lentement, des **squelettes** remplacent « Chargement… » (le texte reste pour les lecteurs d'écran).
+- **Tout est coupé pour qui demande moins d'animations** (`prefers-reduced-motion`) ; un test garantit que chaque animation de la feuille de style figure dans cette règle.
+
+### F65. Défauts trouvés en chemin
+- **Un raté de lecture aurait effacé le tableau de bord.** Une erreur (même d'une relecture d'arrière-plan) remplaçait tout l'écran par « Impossible de charger votre portefeuille », **même avec des chiffres récents à l'écran**. Avec une relecture toutes les 30 s, le premier raté réseau l'aurait fait. Désormais : l'écran d'erreur n'apparaît que s'il n'y a **aucune** donnée ; sinon on garde les derniers chiffres et on écrit « Actualisation impossible… les chiffres affichés datent de la dernière lecture réussie ».
+- **`Number(null)` vaut 0** : passer d'une valeur absente à une valeur aurait teinté le chiffre comme une hausse. Corrigé (trouvé par un test).
+- **Icône : un rectangle plus clair derrière l'œil.** Le flou du halo était exprimé dans l'unité de l'œil, agrandie 16 fois : un voile uniforme coupé net par la zone du filtre. Vu en regardant l'image, corrigé.
+- Un test d'une page (l'ancienne `AllocationBar`) est supprimé avec le composant remplacé.
+
+### F66. Sur téléphone : des cartes, pas un tableau qui défile
+Sous 768 px, une carte par actif (nom cliquable, valeur, résultat, variation 24 h avec flèche, courbe, quantité, part, crayon) au lieu d'un tableau de 860 px qui défilait horizontalement. Mêmes actions, même filtre. La mise en page est choisie par une requête de média lue côté client (sans elle, ou avant l'hydratation : le tableau) pour ne pas dupliquer le contenu dans la page.
+
+### F67. Vérification
+- **Contre un vrai navigateur** : 18 parcours sur 18, dont : la courbe (42 points décimaux, lecture au survol « il y a 7 j » puis retour à « maintenant », au clavier), **la relecture automatique des prix (une requête arrive seule en moins de 60 s)**, le manifeste et chaque icône **réellement servis** (PNG, contenu non vide), les métadonnées de la page, la carte d'aide, et sur 390 px : plus de tableau, trois cartes, la courbe dans l'écran, aucun défilement horizontal. Captures relues.
+- Tests unitaires : voir `docs/ETAPES.md`.
+*Non couvert (honnêtement) :*
+- **L'installation sur un vrai téléphone**, Android ou iPhone : seuls le manifeste, les icônes et les métadonnées sont vérifiés, dans Chromium. L'invite d'installation (`beforeinstallprompt`) n'est que simulée en test. Le Push sur iPhone installé n'est pas essayé.
+- **La teinte d'un prix qui change n'a pas été vue à l'écran** : les prix bougent trop peu pendant un parcours ; elle est testée en unité.
+- Le respect de `prefers-reduced-motion` n'est vérifié que dans la feuille de style, pas dans un navigateur configuré ainsi.
+- Cosmétique : sur grand écran, la colonne de l'anneau laisse de l'espace vide sous la légende.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| **Feuille de route vers un client réel** | Étape 28 : application installable sur téléphone (manifeste, icônes ; sur iPhone le Push exige l'installation) et scripts pour créer le compte du client et fermer l'inscription. Étape 29 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 30 : mentions (« pas un conseil financier ») et recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
+| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 30 : mentions (« pas un conseil financier ») et recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
 | Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |

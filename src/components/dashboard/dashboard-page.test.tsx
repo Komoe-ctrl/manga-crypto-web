@@ -62,6 +62,21 @@ describe("Dashboard", () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  it("une relecture en arrière-plan qui échoue GARDE le portefeuille déjà affiché et le dit, sans écran d'erreur", () => {
+    query = { ...query, data: SAMPLE, error: new Error("réseau"), isPending: false, isFetching: false };
+    show();
+    expect(screen.getByTestId("wallet-total")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Mes actifs" })).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("les chiffres affichés datent de la dernière lecture réussie");
+  });
+
+  it("sans erreur : aucun message d'actualisation", () => {
+    query = { ...query, data: SAMPLE, isPending: false, isFetching: true };
+    show();
+    expect(screen.queryByText(/Actualisation impossible/)).toBeNull();
+  });
+
   it("le bouton « Réessayer » est inactif pendant une nouvelle tentative", () => {
     query = { ...query, error: new Error("réseau"), isPending: false, isFetching: true };
     show();

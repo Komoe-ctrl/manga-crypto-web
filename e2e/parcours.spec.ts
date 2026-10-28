@@ -27,6 +27,7 @@ test.afterAll(async () => {
 });
 
 const shot = (name: string) => page.screenshot({ path: `e2e/captures/${name}.png` });
+const shotFull = (name: string) => page.screenshot({ path: `e2e/captures/${name}.png`, fullPage: true });
 const heading = (name: string | RegExp) => page.getByRole("heading", { name });
 const openOrderDialog = async () => {
   await page.getByRole("button", { name: "Passer un ordre" }).click();
@@ -84,8 +85,45 @@ test("tableau de bord : portefeuille, courbes de 7 jours, variations et état du
   await expect(page.getByText(/Marché (en hausse|en baisse|calme)/)).toBeVisible();
   await expect(table.getByRole("row", { name: /USDT/ }).getByText("—").first()).toBeVisible(); // pas de courbe pour un stablecoin
 
+  // La grande courbe de valeur (positions actuelles, 42 points) et l'anneau de répartition.
+  const chart = page.getByRole("group", { name: "Valeur du portefeuille sur 7 jours" });
+  await expect(chart).toBeVisible();
+  await expect(chart.locator("polyline")).toHaveAttribute("points", /^[\d.]+,[\d.]+( [\d.]+,[\d.]+){41}$/);
+  expect((await chart.boundingBox())!.width).toBeGreaterThan(300);
+  await expect(page.getByText(/Avec vos positions actuelles/)).toBeVisible();
+  await expect(page.getByRole("img", { name: /^Répartition du portefeuille : / })).toBeVisible();
+
   expect(await noHorizontalScroll()).toBe(true);
   await shot("02-tableau-de-bord");
+});
+
+test("courbe de valeur : « maintenant » au repos, lecture d'un point au survol et au clavier", async () => {
+  const chart = page.getByRole("group", { name: "Valeur du portefeuille sur 7 jours" });
+  // La lecture est le paragraphe qui suit la courbe (les pages déjà visitées restent dans le DOM, cachées : on cadre).
+  const readout = chart.locator("xpath=following-sibling::p[@aria-live='polite']");
+  await expect(readout).toContainText("maintenant");
+
+  const box = (await chart.boundingBox())!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2); // tout à gauche : il y a 7 jours
+  await expect(readout).toContainText("il y a 7 j");
+  await expect(readout).not.toContainText("maintenant");
+  await shot("02-courbe-survol");
+
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height + 160); // hors de la courbe : retour à « maintenant »
+  await expect(readout).toContainText("maintenant");
+
+  await chart.focus();
+  await page.keyboard.press("Home");
+  await expect(readout).toContainText("il y a 7 j");
+  await page.keyboard.press("End");
+  await expect(readout).toContainText("maintenant");
+});
+
+test("les prix se rafraîchissent seuls toutes les 30 secondes, sans recharger la page", async () => {
+  test.setTimeout(120_000);
+  const isPortfolio = (r: import("@playwright/test").Request) => r.method() === "GET" && new URL(r.url()).pathname === "/api/portfolio";
+  // Rien d'autre ne relit le portefeuille ici : la requête qui arrive est la relecture automatique.
+  await page.waitForRequest(isPortfolio, { timeout: 60_000 });
 });
 
 test("mise en page : les filtres tiennent sur une ligne (« En gain » ne passe plus à la ligne)", async () => {
@@ -342,6 +380,34 @@ test("rapports : état vide expliqué", async () => {
   await shot("10-rapports");
 });
 
+test("installation sur téléphone : manifeste, icônes, métadonnées et aide dans les Réglages", async () => {
+  const response = await context.request.get("/manifest.webmanifest");
+  expect(response.ok()).toBe(true);
+  const manifest = await response.json();
+  expect(manifest).toMatchObject({ short_name: "Veille", display: "standalone", start_url: "/", lang: "fr", theme_color: "#090c11", background_color: "#090c11" });
+  expect(manifest.icons.map((i: { sizes: string; purpose: string }) => `${i.sizes}:${i.purpose}`)).toEqual(["192x192:any", "512x512:any", "512x512:maskable"]);
+
+  // Chaque icône est servie, en PNG, avec du contenu (sinon le navigateur refuse l'installation).
+  for (const icon of [...manifest.icons, { src: "/icons/apple-touch-icon.png" }]) {
+    const res = await context.request.get(icon.src);
+    expect(res.ok(), icon.src).toBe(true);
+    expect(res.headers()["content-type"], icon.src).toContain("image/png");
+    expect((await res.body()).length, icon.src).toBeGreaterThan(1_000);
+  }
+
+  // Ce que le navigateur lit dans la page.
+  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", /manifest\.webmanifest/);
+  await expect(page.locator('link[rel="apple-touch-icon"]').first()).toHaveAttribute("href", /apple-icon/);
+  await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#090c11");
+  await expect(page.locator('meta[name="apple-mobile-web-app-title"]')).toHaveAttribute("content", "Veille");
+
+  await page.getByRole("link", { name: "Réglages" }).click();
+  const card = page.getByRole("region", { name: "Application sur téléphone" });
+  await expect(card).toBeVisible();
+  await expect(card).toContainText("icône d’installation"); // ordinateur : l'icône de la barre d'adresse
+  await shot("10-installation");
+});
+
 test("temps réel : un arrêt d'urgence décidé dans un onglet apparaît tout seul dans l'autre", async () => {
   await page.getByRole("link", { name: "Tableau de bord" }).click();
   await expect(heading("Le robot est actif")).toBeVisible();
@@ -373,7 +439,18 @@ test("petit écran : pas de défilement horizontal de la page, la fenêtre d'ord
   expect(tops).toHaveLength(4);
   expect(new Set(tops).size, `Les liens de navigation sont sur plusieurs lignes : ${tops.join(", ")}`).toBe(1);
   expect(await nav.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+
+  // Sur téléphone : une carte par actif au lieu d'un tableau qui défile ; la courbe et l'anneau tiennent dans l'écran.
+  await expect(page.getByRole("table")).toHaveCount(0);
+  const cards = page.getByRole("list", { name: "Mes actifs" });
+  await expect(cards.getByRole("listitem")).toHaveCount(3);
+  await expect(cards.getByRole("button", { name: "Voir le détail de ETH" })).toBeVisible();
+  const chartBox = (await page.getByRole("group", { name: "Valeur du portefeuille sur 7 jours" }).boundingBox())!;
+  expect(chartBox.x).toBeGreaterThanOrEqual(0);
+  expect(chartBox.x + chartBox.width).toBeLessThanOrEqual(390);
+  expect(await noHorizontalScroll()).toBe(true);
   await shot("11-mobile-tableau-de-bord");
+  await shotFull("11-mobile-page-entiere");
 
   const dialog = await openOrderDialog();
   const box = (await dialog.boundingBox())!;
