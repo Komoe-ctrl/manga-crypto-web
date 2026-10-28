@@ -454,3 +454,35 @@ Envelopper son contenu dans `<PageColumn>` avec un `<PageHeader icon={…} title
 
 ### Vérifications
 `npm run typecheck`, `npm run lint`, tests unitaires, `npm run test:e2e` (19 parcours) : OK. Détails et limites dans F68 à F71.
+
+---
+
+## Étape 30 : boîte de réception des notifications
+
+### Ce que l'on voit
+- **Une cloche dans l'en-tête**, avec le nombre de notifications non lues.
+- **Page Notifications** : toutes les notifications, la plus récente d'abord, avec « Charger plus ».
+- Chaque ligne dit **où elle est arrivée** : envoyée (Push, Telegram, Email), non envoyée (avec la raison), retenue par le Mode Nuit, reprise dans le rapport du matin.
+- **Marquer comme lue** (une) ou **Tout marquer comme lu** ; filtre **Non lues**.
+
+### Mode d'emploi pour le client
+« La cloche en haut à droite vous dit s'il y a du nouveau. Cliquez dessus : vous voyez ce que Veille vous a envoyé, même ce que vous n'avez pas vu sur votre téléphone. Rien n'est marqué comme lu tout seul. »
+
+### Organisation du code
+| Fichier | Rôle |
+|---|---|
+| `lib/queries/notifications.ts` | Liste paginée, compteur de non lues, marquer comme lu (une / toutes) |
+| `components/notifications/NotificationBell.tsx` | La cloche et son compteur (dans `AppHeader`) |
+| `components/notifications/NotificationsPage.tsx` | La page : filtre, lignes, « où c'est arrivé » |
+| `app/(app)/notifications/page.tsx` | La route `/notifications` |
+
+### Diagnostiquer
+| Symptôme | Cause probable |
+|---|---|
+| Le compteur de la cloche ne baisse pas | La relecture a échoué : recharger la page ; le compte vient de l'API, pas du navigateur |
+| « Non envoyé » sur Push | Appareil non abonné ou clés du serveur absentes : voir l'explication affichée et les Réglages |
+| Une alerte de nuit absente du téléphone | Normal : retenue par le Mode Nuit (sauf critique), reprise dans le rapport du matin |
+
+### Vérifications
+`npm run typecheck`, `npm run lint`, `npm test`, `npm run test:e2e` : voir la PR. Détails et limites dans F72 à F75.
+

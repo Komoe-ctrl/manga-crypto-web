@@ -304,13 +304,28 @@ Toutes les icônes ont `aria-hidden` : le texte porte le sens. Pages `not-found`
 `npm run typecheck`, `npm run lint` : OK. Tests unitaires de la coque, des deux variantes de navigation, des pages de secours et du gabarit ; e2e : nouveau parcours (en-tête à y = 0 après défilement, marges gauche et droite égales à 2 px près sur Rapports, Alertes et Réglages, une seule navigation) et barre du bas collée au bas de l'écran à 390 px. Captures relues.
 **Non vérifié** : sur un vrai iPhone, la barre du bas et la zone sûre (`env(safe-area-inset-bottom)`) ne sont vues que dans l'émulation ; la page de connexion refaite n'a pas été comparée sur capture à plusieurs largeurs ; le tableau de bord lui-même n'a pas de titre de page (il a ses cartes) : à décider avec le client.
 
+## Étape 30 : boîte de réception des notifications
+
+### F72. Une page, pas un menu volant
+L'API savait déjà lister, paginer, filtrer les non lues et marquer comme lu ; le front n'avait **aucun écran** : une alerte envoyée pendant la nuit n'était visible nulle part. Une cloche dans l'en-tête (compteur de non lues) mène à `/notifications`. Une page plutôt qu'un menu volant : pas de piège de focus, pas de défilement dans un défilement, même écran sur téléphone. La cloche n'est pas dans la barre du bas (quatre onglets, déjà serrés à 390 px).
+
+### F73. Dire où la notification est arrivée
+Chaque ligne répond à « est-ce que je l'ai bien reçue ? » : envoyée (canal par canal, Push / Telegram / Email), **non envoyée avec la raison en français** (mêmes explications que le message de test, `lib/delivery.ts`), **retenue par le Mode Nuit**, ou **reprise dans le rapport du matin** (lien vers les rapports). Une notification critique est signalée. Sans canal activé, la ligne le dit au lieu de rester muette.
+
+### F74. Marquer comme lu : toujours explicite
+Pas de marquage à l'ouverture de la page : on pourrait manquer une alerte en passant. « Marquer comme lue » par ligne, « Tout marquer comme lu » en haut. Le compteur de la cloche est une requête à part (`limit=1&unread=true`, on ne lit que le compte) : il reste exact quelle que soit la page ouverte. Le temps réel invalidait déjà `notifications` : une notification qui arrive met à jour la cloche et la liste sans recharger. Le compte est écrit dans le nom accessible de la cloche (« Notifications, 3 non lues ») : la pastille seule ne dirait rien à un lecteur d'écran.
+
+### F75. Vérification et limites
+`npm run typecheck`, `npm run lint` : OK. Tests : cloche (singulier, zéro, 99+, page courante), page (vide, non lues, critique, canal, échec expliqué, Mode Nuit, rapport, marquer, tout marquer, filtre, page suivante, erreur). Parcours e2e réel : message de test envoyé depuis les Réglages, la cloche le compte, la page le liste, une marquée lue (le compte baisse d'une), tout marqué lu, filtre « Non lues » vide.
+**Non vérifié** : une notification **retenue par le Mode Nuit** ou **reprise dans un rapport** n'est vue qu'en test unitaire (le parcours e2e n'en fabrique pas : cela demande l'horloge du serveur) ; pas de suppression ni d'archivage des notifications (l'API n'en propose pas) ; pas d'essai sur un vrai téléphone.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 (**faite**) : mise en page et identité (F68 à F71). Étape 30 : boîte de réception des notifications (cloche, non lus, marquer comme lu : l'API existe, l'écran non). Étape 31 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 32 : recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
+| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 (**faite**) : mise en page et identité (F68 à F71). Étape 30 (**faite**) : boîte de réception des notifications (F72 à F75). Étape 31 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 32 : recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
 | Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |

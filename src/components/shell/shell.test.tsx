@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/lib/auth/auth-provider", () => ({ useAuth: () => ({ state: authState, login: vi.fn(), logout }) }));
 vi.mock("@/lib/realtime/realtime-provider", () => ({ useRealtimeStatus: () => realtime }));
 vi.mock("./AppNav", () => ({ AppNav: () => null }));
+vi.mock("@/components/notifications/NotificationBell", () => ({ NotificationBell: () => null }));
 
 import { PrivacyProvider, resetPrivacyForTests } from "@/lib/privacy";
 import { AppHeader } from "./AppHeader";
