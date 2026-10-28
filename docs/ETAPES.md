@@ -420,4 +420,37 @@ Prérequis : une API qui expose `GET /api/portfolio/operations` (étape 26 de `c
 
 `npm run typecheck`, `npm run lint`, `npm test` (764 tests ; `--maxWorkers=2` si la mémoire manque), `npm run test:e2e` (18 parcours) : OK. Détails, défauts et limites dans F60 à F67.
 
-**Pas encore fait** : essai sur un vrai téléphone, mise en service hébergée (étape 29), mentions et recette (étape 30).
+**Pas encore fait** : essai sur un vrai téléphone, mise en service hébergée, recette.
+
+---
+
+## Étape 29 : mise en page et identité visuelle
+
+### Ce que l'on voit
+- **En-tête fixé en haut** : il reste visible quand on fait défiler (translucide, flouté).
+- **Pages centrées** (Rapports, Alertes, Réglages, Historique), chacune avec son titre, son icône et une phrase.
+- **Icônes** dans la navigation et les titres de page.
+- **Sur téléphone** : barre de navigation en bas (Accueil, Alertes, Rapports, Réglages), point sur « Rapports » quand il y a un rapport non lu.
+- Connexion refaite, pages « introuvable » et « erreur », mention « pas un conseil financier » en bas de page.
+
+### Organisation du code
+| Fichier | Rôle |
+|---|---|
+| `components/shell/AppShell.tsx` | Coque : en-tête, contenu, pied de page, barre du bas sur téléphone |
+| `components/shell/AppHeader.tsx` | En-tête fixé (`sticky`) ; la navigation du haut n'y est rendue que sur grand écran |
+| `components/shell/AppNav.tsx` | Navigation, variantes `top` et `bottom` |
+| `components/shell/PageHeader.tsx` | `PageHeader` (icône, `h1`, phrase) et `PageColumn` (colonne centrée) |
+| `components/shell/StatusScreen.tsx` | Écran plein page des pages `not-found` et `error` |
+
+### Ajouter une page
+Envelopper son contenu dans `<PageColumn>` avec un `<PageHeader icon={…} title="…" />` ; ajouter son lien dans `ITEMS` de `AppNav.tsx`.
+
+### Diagnostiquer
+| Symptôme | Cause probable |
+|---|---|
+| Contenu collé à gauche | Page sans `PageColumn` |
+| Barre du bas absente | Écran de 768 px ou plus (voulu : la navigation est alors dans l'en-tête) |
+| Une fenêtre ou la barre ne colle plus au bord | Un parent a un `backdrop-filter`, `transform` ou `filter` : il sert de repère aux éléments `fixed` |
+
+### Vérifications
+`npm run typecheck`, `npm run lint`, tests unitaires, `npm run test:e2e` (19 parcours) : OK. Détails et limites dans F68 à F71.

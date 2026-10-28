@@ -43,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {toast && (
         <div
           role={toast.tone === "error" ? "alert" : "status"}
-          className={`fixed left-1/2 top-6 z-30 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2.5 rounded-2xl border bg-surface-strong px-[18px] py-3 text-sm font-semibold shadow-2xl ${
+          className={`fixed left-1/2 top-20 z-50 flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-2.5 rounded-2xl border bg-surface-strong px-[18px] py-3 text-sm font-semibold shadow-2xl ${
             toast.tone === "error" ? "border-loss/40" : "border-accent/35"
           }`}
         >

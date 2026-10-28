@@ -427,18 +427,45 @@ test("temps réel : un arrêt d'urgence décidé dans un onglet apparaît tout s
   await other.close();
 });
 
+test("mise en page : en-tête fixé en haut, contenu centré, titre de page, aucune navigation en double", async () => {
+  for (const [label, title] of [["Rapports", "Rapports"], ["Alertes", "Alertes"], ["Réglages", "Réglages"]] as const) {
+    await page.getByRole("link", { name: label, exact: true }).click();
+    const h1 = page.getByRole("heading", { level: 1, name: title });
+    await expect(h1).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navigation principale" })).toHaveCount(1);
+
+    // Le contenu est centré : marges gauche et droite égales (à 2 px près).
+    const box = (await h1.locator("xpath=ancestor::header[1]/..").boundingBox())!;
+    const left = box.x;
+    const right = (await page.evaluate(() => document.documentElement.clientWidth)) - (box.x + box.width); // sans la barre de défilement
+    expect(Math.abs(left - right), `${title} : contenu décentré (gauche ${left}, droite ${right})`).toBeLessThanOrEqual(2);
+
+    // L'en-tête reste en haut quand on fait défiler.
+    await page.mouse.wheel(0, 800);
+    const top = (await page.getByRole("banner").first().boundingBox())!;
+    expect(Math.round(top.y), `${title} : l'en-tête a quitté le haut de l'écran`).toBe(0);
+    await page.mouse.wheel(0, -800);
+  }
+  await shot("10-mise-en-page-reglages");
+  await page.getByRole("link", { name: "Tableau de bord" }).click();
+  await expect(heading("Valeur totale du portefeuille")).toBeVisible();
+});
+
 test("petit écran : pas de défilement horizontal de la page, la fenêtre d'ordre tient dans l'écran", async () => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
   await expect(heading("Valeur totale du portefeuille")).toBeVisible();
   expect(await noHorizontalScroll()).toBe(true);
 
-  // La navigation tient sur une seule ligne (« Réglages » passait à la ligne) et sans avoir à défiler.
+  // La navigation est une barre fixée en bas de l'écran : quatre liens sur une ligne, collée au bord, même après défilement.
   const nav = page.getByRole("navigation", { name: "Navigation principale" });
+  await expect(nav.getByRole("link")).toHaveCount(4);
+  await page.mouse.wheel(0, 600);
+  const bar = (await nav.boundingBox())!;
+  expect(Math.round(bar.y + bar.height), "la barre du bas doit coller au bas de l'écran").toBe(844);
   const tops = await nav.getByRole("link").evaluateAll((links) => links.map((link) => Math.round(link.getBoundingClientRect().top)));
-  expect(tops).toHaveLength(4);
   expect(new Set(tops).size, `Les liens de navigation sont sur plusieurs lignes : ${tops.join(", ")}`).toBe(1);
-  expect(await nav.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await page.mouse.wheel(0, -600);
 
   // Sur téléphone : une carte par actif au lieu d'un tableau qui défile ; la courbe et l'anneau tiennent dans l'écran.
   await expect(page.getByRole("table")).toHaveCount(0);

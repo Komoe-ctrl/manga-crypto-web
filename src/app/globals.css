@@ -32,6 +32,10 @@ body {
     radial-gradient(900px 520px at 12% -8%, rgb(125 211 192 / 0.1), transparent 60%),
     radial-gradient(800px 600px at 100% 10%, rgb(143 168 240 / 0.08), transparent 60%),
     var(--color-canvas);
+  /* Le fond reste en place pendant le défilement : pas de bande de couleur différente en bas de longue page. */
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
   color: var(--color-ink);
 }
 

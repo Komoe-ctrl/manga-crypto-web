@@ -1,7 +1,9 @@
 "use client";
 
+import { History } from "lucide-react";
 import { useState } from "react";
 import { OperationsList, RealizedTotal } from "@/components/portfolio/OperationsList";
+import { PageColumn, PageHeader } from "@/components/shell/PageHeader";
 import { Glass } from "@/components/ui/glass";
 import { CardError, CardLoading } from "@/components/ui/query-state";
 import { useOperations } from "@/lib/queries/operations";
@@ -26,7 +28,8 @@ export function HistoryPage() {
   const symbols = [...new Set([...(portfolio.data?.assets ?? []).map((a) => a.symbol), ...items.map((i) => i.symbol), ...(symbol ? [symbol] : [])])].sort();
 
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
+    <PageColumn>
+      <PageHeader icon={History} title="Historique" description="Tout ce qui a bougé dans votre portefeuille." />
       <Glass aria-labelledby="history-title" className="flex flex-col gap-5 p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-1">
@@ -83,6 +86,6 @@ export function HistoryPage() {
           </>
         )}
       </Glass>
-    </div>
+    </PageColumn>
   );
 }

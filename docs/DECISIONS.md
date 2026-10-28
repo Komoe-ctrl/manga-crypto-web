@@ -289,13 +289,28 @@ Sous 768 px, une carte par actif (nom cliquable, valeur, résultat, variation 24
 - Le respect de `prefers-reduced-motion` n'est vérifié que dans la feuille de style, pas dans un navigateur configuré ainsi.
 - Cosmétique : sur grand écran, la colonne de l'anneau laisse de l'espace vide sous la légende.
 
+## Étape 29 : mise en page et identité visuelle
+
+### F68. En-tête fixé, contenu centré, un seul `h1` par page
+Demande du client, sur capture : « fixer le header, centrer les cartes ». Cause du décentrage : chaque page posait un `max-w-*` sans `mx-auto`, donc collé à gauche. Désormais `PageColumn` (colonne centrée, trois largeurs) et `PageHeader` (icône, titre, phrase) sont le seul gabarit des pages ; l'en-tête est `sticky top-0`, translucide et flouté. Le titre de page est l'unique `h1` (avant : aucun). Le titre et la phrase restent visibles pendant le chargement et l'erreur : le contenu seul change.
+
+### F69. Téléphone : une barre en bas, et jamais deux navigations
+Sur écran étroit la navigation devient une barre fixée en bas (icône + libellé, pastille des rapports non lus, marge de la zone sûre de l'iPhone), l'en-tête ne garde que la marque, l'état « En direct » et deux boutons. Un seul exemplaire de `AppNav` est rendu à la fois (`useMediaQuery(NARROW)`) : deux navigations dans la page seraient annoncées deux fois par un lecteur d'écran. La barre du bas est **hors** de l'en-tête : un parent avec `backdrop-filter` enferme les éléments `fixed` (piège déjà rencontré avec les fenêtres). Le nom accessible du premier lien reste « Tableau de bord » ; « Accueil » n'est qu'un affichage court.
+
+### F70. Identité : icônes décoratives, pages de secours, mention légale
+Toutes les icônes ont `aria-hidden` : le texte porte le sens. Pages `not-found` et `error` (jamais d'écran blanc, aucun détail technique affiché). Pied de page « elle ne donne pas de conseil financier » sur chaque page connectée, et sur la connexion. Le fond est fixe (`background-attachment: fixed`) : sans cela, une page plus haute que l'écran montrait une bande de couleur différente en bas. La bulle de confirmation passe sous l'en-tête fixe (`top-20 z-50`) : à `top-6`, elle serait cachée derrière.
+
+### F71. Vérification et limites
+`npm run typecheck`, `npm run lint` : OK. Tests unitaires de la coque, des deux variantes de navigation, des pages de secours et du gabarit ; e2e : nouveau parcours (en-tête à y = 0 après défilement, marges gauche et droite égales à 2 px près sur Rapports, Alertes et Réglages, une seule navigation) et barre du bas collée au bas de l'écran à 390 px. Captures relues.
+**Non vérifié** : sur un vrai iPhone, la barre du bas et la zone sûre (`env(safe-area-inset-bottom)`) ne sont vues que dans l'émulation ; la page de connexion refaite n'a pas été comparée sur capture à plusieurs largeurs ; le tableau de bord lui-même n'a pas de titre de page (il a ses cartes) : à décider avec le client.
+
 ---
 
 ## À prévoir
 
 | Sujet | Pourquoi |
 |---|---|
-| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 30 : mentions (« pas un conseil financier ») et recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
+| **Feuille de route vers un client réel** | Étape 28 (**faite**) : application installable sur téléphone et comptes du client (F60 à F67), **à essayer sur un vrai téléphone**. Étape 29 (**faite**) : mise en page et identité (F68 à F71). Étape 30 : boîte de réception des notifications (cloche, non lus, marquer comme lu : l'API existe, l'écran non). Étape 31 : mise en service (Docker, https automatique, sauvegardes, supervision, mode d'emploi) : **demande un hébergement et un domaine choisis par le client**. Étape 32 : recette avec le client (les numéros 26 et 27 ont servi à l'historique des opérations) |
 | Import en bloc des positions | Saisir dix actifs un par un est long ; un import CSV serait utile |
 | Push sur un téléphone, Chrome et Firefox ; clic sur la notification | Seul Edge sur Windows a été exercé (F42) ; la notification s'affiche, mais le clic et l'écran verrouillé ne sont pas vérifiés |
 | Modifier le seuil d'une alerte, paginer les ordres, ordre limite | Volontairement laissés de côté à l'étape 20 (F27) ; l'API sait modifier une alerte |
